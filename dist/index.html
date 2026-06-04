@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎓 대학원 할 일 보드 (Graduate Kanban & Calendar)</title>
+  <!-- SEO & Meta Tags -->
+  <meta name="description" content="대학원생들의 연구 과제, 할 일(태스크) 목록을 시각적으로 일목요연하게 관리하고 마감일(Due Date)을 직관적으로 트래킹할 수 있는 프리미엄 대형 칸반 보드 및 캘린더">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎓</text></svg>">
+  
+  <!-- Font Load (Inter from Google Fonts) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Local Stylesheets -->
+  <script type="module" crossorigin src="/graduate-kanban/assets/index-BoqljQQK.js"></script>
+  <link rel="stylesheet" crossorigin href="/graduate-kanban/assets/index-CMNqghPm.css">
+</head>
+<body class="bg-canvas text-ink antialiased">
+
+  <div class="app-container flex flex-col min-h-screen">
+    <!-- Premium Vercel-Style App Header -->
+    <header class="app-header sticky top-0 z-50 flex items-center justify-between border-b border-border bg-canvas px-6 md:px-12 h-16">
+      <div class="flex items-center space-x-3">
+        <span class="text-xl">🎓</span>
+        <h1 class="text-lg font-semibold tracking-tight text-ink m-0">GRADUATE TASKS</h1>
+      </div>
+      
+      <!-- View Switches & Add Button -->
+      <div class="flex items-center space-x-4">
+        <!-- View Toggle Segmented Control -->
+        <div class="view-toggle-container flex p-0.5 bg-canvas-deep border border-border rounded-md">
+          <button id="btn-board-dual-view" class="view-tab-btn active px-3.5 py-1.5 text-xs font-medium rounded-sm flex items-center space-x-1.5 transition-all" aria-label="통합 듀얼 보드로 전환">
+            <i data-lucide="layout-grid" class="w-3.5 h-3.5 text-accent"></i>
+            <span>👑 통합 듀얼 보드</span>
+          </button>
+          <button id="btn-board-grad-view" class="view-tab-btn px-3.5 py-1.5 text-xs font-medium rounded-sm flex items-center space-x-1.5 transition-all" aria-label="대학원생 보드로 전환">
+            <i data-lucide="graduation-cap" class="w-3.5 h-3.5"></i>
+            <span>대학원생 보드</span>
+          </button>
+          <button id="btn-board-prof-view" class="view-tab-btn px-3.5 py-1.5 text-xs font-medium rounded-sm flex items-center space-x-1.5 transition-all" aria-label="내 보드로 전환">
+            <i data-lucide="crown" class="w-3.5 h-3.5"></i>
+            <span>내 보드</span>
+          </button>
+          <button id="btn-calendar-view" class="view-tab-btn px-3.5 py-1.5 text-xs font-medium rounded-sm flex items-center space-x-1.5 transition-all" aria-label="달력 뷰로 전환">
+            <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+            <span>달력 뷰</span>
+          </button>
+          <button id="btn-dashboard-view" class="view-tab-btn px-3.5 py-1.5 text-xs font-medium rounded-sm flex items-center space-x-1.5 transition-all" aria-label="대시보드로 전환">
+            <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i>
+            <span>대시보드</span>
+          </button>
+        </div>
+
+        <!-- Add Task Button -->
+        <button id="btn-add-task" class="btn-primary px-4 py-2 text-xs font-medium rounded-md flex items-center space-x-1.5 transition-all" aria-label="새로운 할 일 추가">
+          <i data-lucide="plus" class="w-3.5 height-3.5"></i>
+          <span>새 할 일 추가</span>
+        </button>
+
+        <!-- Backup: Export / Import -->
+        <button id="btn-export-data" class="px-3 py-2 text-xs font-medium rounded-md flex items-center space-x-1.5 border border-border bg-canvas-deep transition-all" aria-label="데이터 내보내기" title="현재 할 일을 백업 파일로 저장">
+          <i data-lucide="download" class="w-3.5 h-3.5"></i>
+          <span>내보내기</span>
+        </button>
+        <button id="btn-import-data" class="px-3 py-2 text-xs font-medium rounded-md flex items-center space-x-1.5 border border-border bg-canvas-deep transition-all" aria-label="데이터 불러오기" title="백업 파일에서 할 일 가져오기">
+          <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+          <span>불러오기</span>
+        </button>
+        <input id="import-file-input" type="file" accept="application/json,.json" class="hidden" style="display:none" />
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 bg-canvas p-6 md:p-12 overflow-x-hidden">
+      <div id="app-content" class="h-full">
+        <!-- Dynamic Content (Board or Calendar) will render here -->
+      </div>
+    </main>
+
+    <!-- Vercel-Style Flat Footer -->
+    <footer class="app-footer border-t border-border py-6 px-12 bg-canvas-soft flex items-center justify-between text-xs text-mute font-mono">
+      <div>GRADUATE KANBAN BOARD &bull; MVP</div>
+      <div>Press <kbd class="px-1.5 py-0.5 bg-canvas border border-border rounded font-sans text-[10px]">★</kbd> to Bookmark this Page</div>
+    </footer>
+  </div>
+
+  <!-- Modal Target Container -->
+  <div id="modal-container" class="modal-root z-50"></div>
+
+  <!-- App Core JavaScript -->
+</body>
+</html>
