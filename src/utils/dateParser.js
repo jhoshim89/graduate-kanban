@@ -113,11 +113,13 @@ export function formatDate(date) {
 export function extractNaturalLanguageDate(text) {
   if (!text) return { title: "", dueDate: "" };
 
+  // 시작 경계: 앞에 숫자만 아니면 인식 (한글/영문 바로 뒤에 붙은 날짜도 잡도록 lookbehind 사용)
+  // 예: "동물병원6/17", "회의6월17일" 처럼 띄어쓰기 없이 붙여 쓴 경우도 날짜 인식
   const relativeRegex = /(?:^|\s)(오늘|금일|내일|명일|모레|어제|글피|today|tomorrow|yesterday)(?:까지|에|이|가|\s|$)/i;
   const dayOfWeekRegex = /(?:^|\s)((?:이번주|다음주)?\s*[월화수목금토일]요일)(?:까지|에|이|가|\s|$)/;
-  const monthDayRegex1 = /(?:^|\s)(\d{1,2}\s*월\s*\d{1,2}\s*일?)(?:까지|에|이|가|\s|$)/;
-  const monthDayRegex2 = /(?:^|\s)(\d{1,2}[/\-.]\d{1,2})(?:일|요일|까지|에|이|가|\s|$)/;
-  const isoDateRegex = /(?:^|\s)(\d{4}[/\-.]\d{1,2}[/\-.]\d{1,2})(?:까지|에|이|가|\s|$)/;
+  const monthDayRegex1 = /(?<!\d)(\d{1,2}\s*월\s*\d{1,2}\s*일?)(?:까지|에|이|가|\s|$)/;
+  const monthDayRegex2 = /(?<!\d)(\d{1,2}[/\-.]\d{1,2})(?:일|요일|까지|에|이|가|\s|$)/;
+  const isoDateRegex = /(?<!\d)(\d{4}[/\-.]\d{1,2}[/\-.]\d{1,2})(?:까지|에|이|가|\s|$)/;
 
   let dueDate = "";
   let title = text;

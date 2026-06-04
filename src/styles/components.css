@@ -946,3 +946,148 @@
   box-shadow: 0 0 0 2px rgba(0, 112, 243, 0.45) !important;
   outline: none;
 }
+
+
+/* ==========================================
+   Category Tab Bar (사용자 정의 탭: 전체/일상/개발/+)
+   ========================================== */
+.category-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.875rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cat-tab {
+  background: transparent;
+  color: var(--color-mute);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.cat-tab:hover {
+  color: var(--color-ink);
+  background: var(--color-canvas-soft);
+}
+
+.cat-tab.active {
+  background: var(--color-ink);
+  color: var(--color-canvas);
+  border-color: var(--color-ink);
+}
+
+.cat-tab-wrap {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+}
+
+.cat-tab-wrap .cat-tab.cat-tab-named {
+  padding-right: 1.5rem; /* 삭제 버튼 자리 */
+}
+
+.cat-tab-delete {
+  position: absolute;
+  right: 0.375rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--color-mute);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast);
+  padding: 2px;
+  border-radius: 4px;
+}
+
+.cat-tab-wrap:hover .cat-tab-delete {
+  opacity: 1;
+}
+
+.cat-tab-delete:hover {
+  color: var(--color-error);
+  background: var(--color-error-soft);
+}
+
+.cat-tab-wrap.active .cat-tab-delete {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.cat-tab-wrap.active .cat-tab-delete:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.cat-tab-add {
+  background: transparent;
+  color: var(--color-mute);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  padding: 0.375rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.cat-tab-add:hover {
+  color: var(--color-ink);
+  border-color: var(--color-ink);
+}
+
+.cat-tab-edit-input {
+  width: 96px;
+  padding: 0.375rem 0.5rem;
+  font-size: 0.8125rem;
+  border-radius: var(--radius-md);
+}
+
+/* 카드/대시보드의 카테고리 배지 */
+.card-category-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--color-mute);
+  background: var(--color-canvas-deep);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 4px;
+  vertical-align: middle;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+/* 대시보드 탭별 진행률 그리드 */
+.cat-progress-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem 1.5rem;
+}
+
+.cat-progress-item {
+  padding: 0.5rem;
+  border-radius: var(--radius-md);
+  transition: background-color var(--transition-fast);
+}
+
+.cat-progress-item:hover {
+  background: var(--color-canvas-soft);
+}

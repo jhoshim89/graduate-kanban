@@ -132,12 +132,12 @@ export function renderCalendar() {
                     }
                   }
 
-                  // Prepend Crown emoji for professor and Cap emoji for graduate
-                  const ownerBadge = task.owner === "professor" ? "👑" : "🎓";
+                  // 카테고리 라벨을 hover 툴팁에 표시
+                  const catLabel = task.category ? `[${escapeHTML(task.category)}] ` : "";
 
                   return `
-                    <div class="calendar-task-pill ${pillClass} calendar-inline-edit-pill" data-id="${task.id}" title="${ownerBadge} ${escapeHTML(task.title)}">
-                      <span>${ownerBadge}</span> ${escapeHTML(task.title)}
+                    <div class="calendar-task-pill ${pillClass} calendar-inline-edit-pill" data-id="${task.id}" title="${catLabel}${escapeHTML(task.title)}">
+                      ${escapeHTML(task.title)}
                     </div>
                   `;
                 }).join("")}
@@ -148,7 +148,7 @@ export function renderCalendar() {
                 <input 
                   type="text" 
                   class="calendar-static-input form-input" 
-                  placeholder="+ 내 일 추가 (Enter)" 
+                  placeholder="+ 할 일 추가 (Enter)"
                   autocomplete="off" 
                   style="border-radius: var(--radius-sm); height: 18px; padding: 2px 4px; border: 1px dashed var(--color-border); background: var(--color-canvas); font-size: 9px; width: 100%; transition: border-color var(--transition-fast);"
                 />

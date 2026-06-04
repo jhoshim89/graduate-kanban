@@ -1,18 +1,16 @@
 /* -------------------------------------------------------------
  * Main Application Logic & Event Controller
- * Full Dual-Board (Graduate vs Professor) Support
+ * Category-Tab Board + Calendar + Dashboard
  * ------------------------------------------------------------- */
-import { store } from "./store.js";
-import { renderBoard, renderDualBoard } from "./components/Board.js";
+import { store, ALL_TAB } from "./store.js";
+import { renderBoard } from "./components/Board.js";
 import { renderCalendar } from "./components/Calendar.js";
 import { renderDashboard } from "./components/Dashboard.js";
 import { parseNaturalLanguageDate, extractNaturalLanguageDate } from "./utils/dateParser.js";
 
 // DOM Selector Cache
 const appContent = document.getElementById("app-content");
-const btnBoardDualView = document.getElementById("btn-board-dual-view");
-const btnBoardGradView = document.getElementById("btn-board-grad-view");
-const btnBoardProfView = document.getElementById("btn-board-prof-view");
+const btnBoardView = document.getElementById("btn-board-view");
 const btnCalendarView = document.getElementById("btn-calendar-view");
 const btnDashboardView = document.getElementById("btn-dashboard-view");
 const btnAddTask = document.getElementById("btn-add-task");
@@ -26,56 +24,29 @@ let activeFocusElementInfo = null;
 function render(state) {
   const currentView = state.currentView;
 
-  // 1. Render active view & bind corresponding events
-  if (currentView === "board_dual") {
-    btnBoardDualView.classList.add("active");
-    btnBoardGradView.classList.remove("active");
-    btnBoardProfView.classList.remove("active");
-    btnCalendarView.classList.remove("active");
-    btnDashboardView.classList.remove("active");
-    appContent.innerHTML = renderDualBoard();
-    bindBoardEvents("graduate");
-    bindBoardEvents("professor");
-  } else if (currentView === "board_grad") {
-    btnBoardDualView.classList.remove("active");
-    btnBoardGradView.classList.add("active");
-    btnBoardProfView.classList.remove("active");
-    btnCalendarView.classList.remove("active");
-    btnDashboardView.classList.remove("active");
-    appContent.innerHTML = renderBoard("graduate", "light");
-    bindBoardEvents("graduate");
-  } else if (currentView === "board_prof") {
-    btnBoardDualView.classList.remove("active");
-    btnBoardGradView.classList.remove("active");
-    btnBoardProfView.classList.add("active");
-    btnCalendarView.classList.remove("active");
-    btnDashboardView.classList.remove("active");
-    appContent.innerHTML = renderBoard("professor", "dark");
-    bindBoardEvents("professor");
-  } else if (currentView === "calendar") {
-    btnBoardDualView.classList.remove("active");
-    btnBoardGradView.classList.remove("active");
-    btnBoardProfView.classList.remove("active");
-    btnCalendarView.classList.add("active");
-    btnDashboardView.classList.remove("active");
+  btnBoardView.classList.toggle("active", currentView === "board");
+  btnCalendarView.classList.toggle("active", currentView === "calendar");
+  btnDashboardView.classList.toggle("active", currentView === "dashboard");
+
+  if (currentView === "calendar") {
     appContent.innerHTML = renderCalendar();
     bindCalendarEvents();
   } else if (currentView === "dashboard") {
-    btnBoardDualView.classList.remove("active");
-    btnBoardGradView.classList.remove("active");
-    btnBoardProfView.classList.remove("active");
-    btnCalendarView.classList.remove("active");
-    btnDashboardView.classList.add("active");
     appContent.innerHTML = renderDashboard();
     bindDashboardEvents();
+  } else {
+    // default: board
+    appContent.innerHTML = renderBoard();
+    bindBoardEvents();
+    bindCategoryTabEvents();
   }
 
-  // 2. Hydrate vector SVG icons
+  // Hydrate vector SVG icons
   if (window.lucide) {
     window.lucide.createIcons();
   }
 
-  // 3. Smart Focus Restoration after state re-render
+  // Smart Focus Restoration after state re-render
   restoreFocus();
 }
 
@@ -100,45 +71,31 @@ function restoreFocus() {
 
   const { type, key } = activeFocusElementInfo;
 
-  if (type === "board-add") {
-    const [status, owner] = key.split(":");
-    // Ensure we are restoring to the currently visible owner board or dual view
-    const currentView = store.getCurrentView();
-    const isDual = currentView === "board_dual";
-    const activeOwner = currentView === "board_grad" ? "graduate" : (currentView === "board_prof" ? "professor" : null);
-
-    if (isDual || owner === activeOwner) {
-      const container = document.querySelector(`.static-inline-add[data-status="${status}"][data-owner="${owner}"]`);
-      if (container) {
-        const input = container.querySelector(".static-title-input");
-        if (input) {
-          input.focus();
-        }
-      }
+  if (type === "board-add" && store.getCurrentView() === "board") {
+    const container = document.querySelector(`.static-inline-add[data-status="${key}"]`);
+    if (container) {
+      const input = container.querySelector(".static-title-input");
+      if (input) input.focus();
     }
   } else if (type === "calendar-add" && store.getCurrentView() === "calendar") {
     const container = document.querySelector(`.calendar-static-add-container[data-date="${key}"]`);
     if (container) {
       const input = container.querySelector(".calendar-static-input");
-      if (input) {
-        input.focus();
-      }
+      if (input) input.focus();
     }
   }
 }
 
 
 /* =============================================================
-   1. Board View Static Additions & Inline Editing Event Bindings
+   1. Board View Event Bindings (Drag/Drop, Inline Add & Edit)
    ============================================================= */
 
-function bindBoardEvents(owner) {
-  const cards = document.querySelectorAll(`.task-card[data-owner="${owner}"]`);
-  const columns = document.querySelectorAll(`.board-column[data-owner="${owner}"]`);
+function bindBoardEvents() {
+  const cards = document.querySelectorAll(".task-card");
+  const columns = document.querySelectorAll(".board-column");
 
-  // -----------------------------------------------------------
-  // A. DRAG AND DROP HANDLERS
-  // -----------------------------------------------------------
+  // A. DRAG AND DROP — moves task between status columns
   cards.forEach(card => {
     card.addEventListener("dragstart", (e) => {
       if (card.querySelector("input")) {
@@ -167,59 +124,49 @@ function bindBoardEvents(owner) {
     column.addEventListener("drop", (e) => {
       e.preventDefault();
       column.classList.remove("drag-over");
-      
+
       const taskId = e.dataTransfer.getData("text/plain");
       const targetStatus = column.dataset.status;
-      const targetOwner = column.dataset.owner;
-      
+
       if (taskId && targetStatus) {
-        // Update both status and verify owner matching
-        store.updateTask(taskId, { 
-          status: targetStatus,
-          owner: targetOwner // Allow moving task owner if dropped across columns (though currently separated)
-        });
+        store.updateTask(taskId, { status: targetStatus });
       }
     });
   });
 
-  // -----------------------------------------------------------
-  // B. STATIC ZERO-CLICK INLINE ADD FORM EVENT HANDLERS
-  // -----------------------------------------------------------
-  const staticInputs = document.querySelectorAll(`.static-inline-add[data-owner="${owner}"] .static-title-input`);
+  // B. STATIC ZERO-CLICK INLINE ADD
+  const staticInputs = document.querySelectorAll(".static-inline-add .static-title-input");
   staticInputs.forEach(input => {
     const container = input.closest(".static-inline-add");
     const status = container.dataset.status;
-    const inputOwner = container.dataset.owner;
 
     input.addEventListener("focus", () => {
-      saveFocusState("board-add", `${status}:${inputOwner}`);
+      saveFocusState("board-add", status);
     });
 
     input.addEventListener("blur", () => {
       setTimeout(() => {
-        if (activeFocusElementInfo && activeFocusElementInfo.type === "board-add" && activeFocusElementInfo.key === `${status}:${inputOwner}` && document.activeElement !== input) {
+        if (activeFocusElementInfo && activeFocusElementInfo.type === "board-add" && activeFocusElementInfo.key === status && document.activeElement !== input) {
           clearFocusState();
         }
       }, 100);
     });
 
     input.addEventListener("keydown", (e) => {
-      // IME Fixed
-      if (e.isComposing || e.keyCode === 229) return;
+      if (e.isComposing || e.keyCode === 229) return; // IME
 
       if (e.key === "Enter") {
         e.preventDefault();
         const val = input.value.trim();
         if (!val) return;
 
-        saveFocusState("board-add", `${status}:${inputOwner}`);
+        saveFocusState("board-add", status);
 
-        // Extract due date intelligently and separate title
         const { title: parsedTitle, dueDate: parsedDueDate } = extractNaturalLanguageDate(val);
         if (!parsedTitle) return;
 
-        // Add task with parsed parameters (supports no due date)
-        const newTask = store.addTask(parsedTitle, parsedDueDate, inputOwner);
+        // 새 할 일은 현재 활성 탭으로 분류됨 (store.addTask 기본 동작)
+        const newTask = store.addTask(parsedTitle, parsedDueDate);
         if (status !== "todo") {
           store.updateTaskStatus(newTask.id, status);
         }
@@ -231,17 +178,17 @@ function bindBoardEvents(owner) {
     });
   });
 
-  // -----------------------------------------------------------
-  // C. INLINE EDITING: DOUBLE CLICK TITLE TO EDIT
-  // -----------------------------------------------------------
-  const editableTitles = document.querySelectorAll(`.board-column[data-owner="${owner}"] .inline-edit-title`);
+  // C. INLINE EDIT TITLE (double click)
+  const editableTitles = document.querySelectorAll(".inline-edit-title");
   editableTitles.forEach(titleEl => {
     titleEl.addEventListener("dblclick", (e) => {
       e.stopPropagation();
       if (titleEl.querySelector("input")) return;
 
       const taskId = titleEl.dataset.id;
-      const originalText = titleEl.textContent.trim();
+      // 카테고리 배지를 제외한 순수 제목만 추출
+      const task = store.getTasks().find(t => t.id === taskId);
+      const originalText = task ? task.title : titleEl.textContent.trim();
 
       const input = document.createElement("input");
       input.type = "text";
@@ -260,7 +207,6 @@ function bindBoardEvents(owner) {
       const saveEdit = () => {
         if (finished) return;
         finished = true;
-        
         const newValue = input.value.trim();
         if (newValue && newValue !== originalText) {
           store.updateTask(taskId, { title: newValue });
@@ -278,22 +224,14 @@ function bindBoardEvents(owner) {
       input.addEventListener("blur", saveEdit);
       input.addEventListener("keydown", (evt) => {
         if (evt.isComposing || evt.keyCode === 229) return;
-
-        if (evt.key === "Enter") {
-          evt.preventDefault();
-          saveEdit();
-        } else if (evt.key === "Escape") {
-          evt.preventDefault();
-          cancelEdit();
-        }
+        if (evt.key === "Enter") { evt.preventDefault(); saveEdit(); }
+        else if (evt.key === "Escape") { evt.preventDefault(); cancelEdit(); }
       });
     });
   });
 
-  // -----------------------------------------------------------
-  // D. INLINE EDITING: SINGLE CLICK DUE DATE TO EDIT
-  // -----------------------------------------------------------
-  const editableDues = document.querySelectorAll(`.board-column[data-owner="${owner}"] .inline-edit-due`);
+  // D. INLINE EDIT DUE DATE (single click)
+  const editableDues = document.querySelectorAll(".inline-edit-due, .task-card-due");
   editableDues.forEach(dueEl => {
     dueEl.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -301,21 +239,21 @@ function bindBoardEvents(owner) {
 
       const taskId = dueEl.dataset.id;
       const spanTextEl = dueEl.querySelector(".due-text");
-      
+
       const task = store.getTasks().find(t => t.id === taskId);
-      const originalDateText = task ? task.dueDate : spanTextEl.textContent.trim();
+      const originalDateText = task ? task.dueDate : (spanTextEl ? spanTextEl.textContent.trim() : "");
 
       const input = document.createElement("input");
       input.type = "text";
       input.className = "form-input py-0.5 px-1 text-[11px] font-mono";
       input.style.width = "140px";
       input.style.display = "inline-block";
-      input.placeholder = "예: 오늘, 내일, 5/30";
+      input.placeholder = "예: 오늘, 내일, 6/17";
       input.value = originalDateText;
 
       const icon = dueEl.querySelector("i");
       if (icon) icon.style.display = "none";
-      spanTextEl.style.display = "none";
+      if (spanTextEl) spanTextEl.style.display = "none";
       dueEl.appendChild(input);
       input.focus();
       input.select();
@@ -326,15 +264,12 @@ function bindBoardEvents(owner) {
       const saveEdit = () => {
         if (finished) return;
         finished = true;
-
         const val = input.value.trim();
         if (val) {
           const parsed = parseNaturalLanguageDate(val) || val;
           store.updateTask(taskId, { dueDate: parsed });
         } else {
-          if (icon) icon.style.display = "";
-          spanTextEl.style.display = "";
-          input.remove();
+          store.updateTask(taskId, { dueDate: "" });
         }
       };
 
@@ -342,40 +277,29 @@ function bindBoardEvents(owner) {
         if (finished) return;
         finished = true;
         if (icon) icon.style.display = "";
-        spanTextEl.style.display = "";
+        if (spanTextEl) spanTextEl.style.display = "";
         input.remove();
       };
 
       input.addEventListener("blur", saveEdit);
       input.addEventListener("keydown", (evt) => {
-        if (evt.key === "Enter") {
-          evt.preventDefault();
-          saveEdit();
-        } else if (evt.key === "Escape") {
-          evt.preventDefault();
-          cancelEdit();
-        }
+        if (evt.isComposing || evt.keyCode === 229) return;
+        if (evt.key === "Enter") { evt.preventDefault(); saveEdit(); }
+        else if (evt.key === "Escape") { evt.preventDefault(); cancelEdit(); }
       });
     });
   });
 
-  // -----------------------------------------------------------
-  // E. CARD ACTION: DIRECT DELETE BUTTON HANDLER
-  // -----------------------------------------------------------
-  const deleteButtons = document.querySelectorAll(`.board-column[data-owner="${owner}"] .delete-task-btn`);
-  deleteButtons.forEach(btn => {
+  // E. DELETE BUTTON
+  document.querySelectorAll(".delete-task-btn").forEach(btn => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
-      const taskId = btn.dataset.id;
-      store.deleteTask(taskId);
+      store.deleteTask(btn.dataset.id);
     });
   });
 
-  // -----------------------------------------------------------
-  // F. APPLE REMINDERS CHECK CIRCLE CLICK HANDLER
-  // -----------------------------------------------------------
-  const checkButtons = document.querySelectorAll(`.board-column[data-owner="${owner}"] .reminder-check-btn`);
-  checkButtons.forEach(btn => {
+  // F. CHECK CIRCLE TOGGLE (done <-> todo)
+  document.querySelectorAll(".reminder-check-btn").forEach(btn => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       const taskId = btn.dataset.id;
@@ -384,6 +308,111 @@ function bindBoardEvents(owner) {
       store.updateTaskStatus(taskId, targetStatus);
     });
   });
+}
+
+
+/* =============================================================
+   1b. Category Tab Bar Event Bindings
+   ============================================================= */
+
+function bindCategoryTabEvents() {
+  // 탭 클릭 → 활성 탭 전환
+  document.querySelectorAll(".cat-tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      store.setActiveCategory(tab.dataset.cat);
+    });
+  });
+
+  // 탭 더블클릭 → 이름 변경 (사용자 정의 탭만)
+  document.querySelectorAll(".cat-tab-named").forEach(tab => {
+    tab.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      if (tab.querySelector("input")) return;
+
+      const oldName = tab.dataset.cat;
+      const input = document.createElement("input");
+      input.type = "text";
+      input.className = "cat-tab-edit-input form-input";
+      input.value = oldName;
+
+      tab.textContent = "";
+      tab.appendChild(input);
+      input.focus();
+      input.select();
+
+      let finished = false;
+      const finish = (commit) => {
+        if (finished) return;
+        finished = true;
+        const val = input.value.trim();
+        if (commit && val && val !== oldName) {
+          const r = store.renameCategory(oldName, val);
+          if (!r.ok && r.message) {
+            window.alert(r.message);
+            tab.textContent = oldName;
+          }
+          // 성공 시 store.notify → 재렌더
+        } else {
+          tab.textContent = oldName;
+        }
+      };
+
+      input.addEventListener("keydown", (evt) => {
+        if (evt.isComposing || evt.keyCode === 229) return;
+        if (evt.key === "Enter") { evt.preventDefault(); finish(true); }
+        else if (evt.key === "Escape") { evt.preventDefault(); finish(false); }
+      });
+      input.addEventListener("blur", () => finish(true));
+    });
+  });
+
+  // 탭 삭제 (× 버튼) — 할 일은 남은 첫 탭으로 이동, 삭제되지 않음
+  document.querySelectorAll(".cat-tab-delete").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const r = store.deleteCategory(btn.dataset.cat);
+      if (!r.ok && r.message) window.alert(r.message);
+    });
+  });
+
+  // 탭 추가 — 버튼 자리에 인라인 입력
+  const addBtn = document.getElementById("cat-tab-add-btn");
+  if (addBtn) {
+    addBtn.addEventListener("click", () => {
+      if (document.getElementById("cat-tab-add-input")) return;
+
+      const input = document.createElement("input");
+      input.id = "cat-tab-add-input";
+      input.type = "text";
+      input.className = "cat-tab-edit-input form-input";
+      input.placeholder = "새 탭 이름";
+      addBtn.parentNode.insertBefore(input, addBtn);
+      addBtn.style.display = "none";
+      input.focus();
+
+      let finished = false;
+      const finish = (commit) => {
+        if (finished) return;
+        finished = true;
+        const val = input.value.trim();
+        if (input.parentNode) input.remove();
+        addBtn.style.display = "";
+        if (commit && val) {
+          const r = store.addCategory(val);
+          if (!r.ok && r.message) window.alert(r.message);
+          // 성공 시 store.notify → 재렌더
+        }
+      };
+
+      input.addEventListener("keydown", (evt) => {
+        if (evt.isComposing || evt.keyCode === 229) return;
+        if (evt.key === "Enter") { evt.preventDefault(); finish(true); }
+        else if (evt.key === "Escape") { evt.preventDefault(); finish(false); }
+      });
+      input.addEventListener("blur", () => finish(true));
+    });
+  }
 }
 
 
@@ -412,7 +441,7 @@ function bindCalendarEvents() {
     });
   }
 
-  // CALENDAR QUICK ADD (Adds to 'professor' board by default as user controls this)
+  // CALENDAR QUICK ADD — 현재 활성 탭으로 분류
   const calendarInputs = document.querySelectorAll(".calendar-static-input");
   calendarInputs.forEach(input => {
     const container = input.closest(".calendar-static-add-container");
@@ -439,13 +468,11 @@ function bindCalendarEvents() {
         if (!val) return;
 
         saveFocusState("calendar-add", dateStr);
-        
-        // Extract due date intelligently and separate title (keeps dateStr if no date parsed)
+
         const { title: parsedTitle, dueDate: parsedDueDate } = extractNaturalLanguageDate(val);
         if (!parsedTitle) return;
 
-        // Default to professor task since user is editing directly in calendar
-        store.addTask(parsedTitle, parsedDueDate || dateStr, "professor");
+        store.addTask(parsedTitle, parsedDueDate || dateStr);
       } else if (e.key === "Escape") {
         input.value = "";
         input.blur();
@@ -454,7 +481,7 @@ function bindCalendarEvents() {
     });
   });
 
-  // CALENDAR BADGE CLICK: DOUBLE CLICK TO EDIT TITLE INLINE
+  // CALENDAR PILL: DOUBLE CLICK TO EDIT TITLE INLINE
   const calendarPills = document.querySelectorAll(".calendar-inline-edit-pill");
   calendarPills.forEach(pill => {
     pill.addEventListener("dblclick", (e) => {
@@ -462,10 +489,8 @@ function bindCalendarEvents() {
       if (pill.querySelector("input")) return;
 
       const taskId = pill.dataset.id;
-      const originalText = pill.textContent.trim();
-
-      // Extract raw text excluding crown/cap emoji
-      const textToEdit = originalText.replace(/^[👑🎓]\s*/, "");
+      const task = store.getTasks().find(t => t.id === taskId);
+      const textToEdit = task ? task.title : pill.textContent.trim();
 
       const input = document.createElement("input");
       input.type = "text";
@@ -484,32 +509,25 @@ function bindCalendarEvents() {
       const saveEdit = () => {
         if (finished) return;
         finished = true;
-
         const newValue = input.value.trim();
         if (newValue && newValue !== textToEdit) {
           store.updateTask(taskId, { title: newValue });
         } else {
-          pill.textContent = originalText;
+          store.notify();
         }
       };
 
       const cancelEdit = () => {
         if (finished) return;
         finished = true;
-        pill.textContent = originalText;
+        store.notify();
       };
 
       input.addEventListener("blur", saveEdit);
       input.addEventListener("keydown", (evt) => {
         if (evt.isComposing || evt.keyCode === 229) return;
-
-        if (evt.key === "Enter") {
-          evt.preventDefault();
-          saveEdit();
-        } else if (evt.key === "Escape") {
-          evt.preventDefault();
-          cancelEdit();
-        }
+        if (evt.key === "Enter") { evt.preventDefault(); saveEdit(); }
+        else if (evt.key === "Escape") { evt.preventDefault(); cancelEdit(); }
       });
     });
   });
@@ -517,7 +535,7 @@ function bindCalendarEvents() {
 
 
 /* =============================================================
-   3. Premium Dashboard View Event Bindings
+   3. Dashboard View Event Bindings
    ============================================================= */
 
 function bindDashboardEvents() {
@@ -528,20 +546,23 @@ function bindDashboardEvents() {
     });
   }
 
-  const btnInprogressList = document.querySelectorAll(".btn-quick-inprogress");
-  const btnDoneList = document.querySelectorAll(".btn-quick-done");
-
-  btnInprogressList.forEach(btn => {
+  document.querySelectorAll(".btn-quick-inprogress").forEach(btn => {
     btn.addEventListener("click", () => {
-      const taskId = btn.dataset.id;
-      store.updateTaskStatus(taskId, "inprogress");
+      store.updateTaskStatus(btn.dataset.id, "inprogress");
     });
   });
 
-  btnDoneList.forEach(btn => {
+  document.querySelectorAll(".btn-quick-done").forEach(btn => {
     btn.addEventListener("click", () => {
-      const taskId = btn.dataset.id;
-      store.updateTaskStatus(taskId, "done");
+      store.updateTaskStatus(btn.dataset.id, "done");
+    });
+  });
+
+  // 대시보드 카테고리 칩 클릭 → 보드로 이동하며 해당 탭 활성화
+  document.querySelectorAll(".dash-cat-link").forEach(el => {
+    el.addEventListener("click", () => {
+      store.setActiveCategory(el.dataset.cat);
+      store.setView("board");
     });
   });
 }
@@ -551,56 +572,32 @@ function bindDashboardEvents() {
    4. Global App Control Bindings & Bootstrap
    ============================================================= */
 
-// A. Global Toggle View Click handlers
-btnBoardDualView.addEventListener("click", () => {
-  store.setView("board_dual");
-});
+btnBoardView.addEventListener("click", () => store.setView("board"));
+btnCalendarView.addEventListener("click", () => store.setView("calendar"));
+btnDashboardView.addEventListener("click", () => store.setView("dashboard"));
 
-btnBoardGradView.addEventListener("click", () => {
-  store.setView("board_grad");
-});
-
-btnBoardProfView.addEventListener("click", () => {
-  store.setView("board_prof");
-});
-
-btnCalendarView.addEventListener("click", () => {
-  store.setView("calendar");
-});
-
-btnDashboardView.addEventListener("click", () => {
-  store.setView("dashboard");
-});
-
-// B. Global Quick Add Task Button click (Focuses first column input of current active board view)
+// Global Quick Add Task Button → 보드로 가서 To Do 입력창 포커스
 btnAddTask.addEventListener("click", () => {
-  const currentView = store.getCurrentView();
-  
-  if (currentView === "calendar" || currentView === "dashboard") {
-    // If not in a board view, default to Dual Board (professor pane)
-    store.setView("board_dual");
-    setTimeout(() => focusBoardAddInput("professor"), 50);
-  } else if (currentView === "board_dual") {
-    // Default to My Board (professor) inside dual view for convenience
-    focusBoardAddInput("professor");
+  if (store.getCurrentView() !== "board") {
+    store.setView("board");
+    setTimeout(focusBoardAddInput, 50);
   } else {
-    const activeOwner = currentView === "board_grad" ? "graduate" : "professor";
-    focusBoardAddInput(activeOwner);
+    focusBoardAddInput();
   }
 });
 
-function focusBoardAddInput(owner) {
-  const container = document.querySelector(`.static-inline-add[data-status="todo"][data-owner="${owner}"]`);
+function focusBoardAddInput() {
+  const container = document.querySelector('.static-inline-add[data-status="todo"]');
   if (container) {
     const input = container.querySelector(".static-title-input");
     if (input) {
       input.focus();
-      saveFocusState("board-add", `todo:${owner}`);
+      saveFocusState("board-add", "todo");
     }
   }
 }
 
-// B-2. Data Backup: Export current data to a downloadable JSON file
+// Data Backup: Export
 const btnExportData = document.getElementById("btn-export-data");
 const btnImportData = document.getElementById("btn-import-data");
 const importFileInput = document.getElementById("import-file-input");
@@ -641,7 +638,7 @@ if (btnImportData && importFileInput) {
   });
 }
 
-// C. App Initial Load Bootstrap
+// App Initial Load Bootstrap
 document.addEventListener("DOMContentLoaded", () => {
   render(store.state);
 });
