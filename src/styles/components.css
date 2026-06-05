@@ -1196,8 +1196,12 @@
   background: var(--color-accent-soft);
 }
 
+.task-card[draggable="true"] {
+  cursor: grab;
+}
 .task-card.dragging {
   opacity: 0.4;
+  cursor: grabbing;
 }
 
 /* ==========================================

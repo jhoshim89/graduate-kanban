@@ -169,19 +169,17 @@ function openMoveMenu(btn, taskId) {
    Board View — Checklist + Drag-to-Tab + Inline Edit
    ============================================================= */
 function bindBoardEvents() {
-  // A. 드래그 핸들로만 드래그 시작 (드롭 대상은 상단 탭)
-  document.querySelectorAll(".card-drag-handle").forEach(handle => {
-    handle.addEventListener("dragstart", (e) => {
-      const card = handle.closest(".task-card");
-      if (!card) return;
+  // A. 카드(행) 어디를 잡아도 드래그 시작 (드롭 대상은 상단 탭 + 옆 패널)
+  document.querySelectorAll(".task-card").forEach(card => {
+    card.addEventListener("dragstart", (e) => {
+      if (card.querySelector("input")) { e.preventDefault(); return; } // 편집 중엔 드래그 금지
       e.dataTransfer.setData("text/plain", card.dataset.id);
       e.dataTransfer.effectAllowed = "move";
       setTimeout(() => card.classList.add("dragging"), 0);
       showDropPanel(card.dataset.id); // 옆에 탭 드롭 목록 띄우기
     });
-    handle.addEventListener("dragend", () => {
-      const card = handle.closest(".task-card");
-      if (card) card.classList.remove("dragging");
+    card.addEventListener("dragend", () => {
+      card.classList.remove("dragging");
       hideDropPanel();
     });
   });
