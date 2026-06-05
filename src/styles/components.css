@@ -1246,34 +1246,42 @@
   right: 40px;
   transform: translateY(-50%);
   z-index: 2000;
-  width: 220px;
+  width: 190px;
   background: var(--color-canvas);
   border: 2px dashed var(--color-accent);
   border-radius: var(--radius-lg);
-  padding: 1rem;
+  padding: 0.75rem;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.375rem;
 }
 .drag-drop-panel-title {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 600;
   color: var(--color-mute);
   text-align: center;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.125rem;
 }
 .drag-drop-zone {
-  padding: 0.875rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0.75rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-canvas-soft);
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   color: var(--color-ink);
-  text-align: center;
   cursor: pointer;
   transition: transform var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+.drag-drop-zone svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--color-accent);
 }
 .drag-drop-zone.over {
   background: var(--color-accent-soft);
@@ -1282,5 +1290,70 @@
   transform: scale(1.04);
 }
 .drag-drop-zone.is-current {
-  opacity: 0.45;
+  opacity: 0.5;
+}
+
+/* 키보드 단축키 도움말 */
+.shortcut-help-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.shortcut-help-card {
+  background: var(--color-canvas);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
+  padding: 1.5rem 1.75rem;
+  width: 340px;
+  max-width: 90vw;
+}
+.shortcut-help-card h3 {
+  margin: 0 0 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+.shortcut-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+.shortcut-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--color-body);
+}
+.shortcut-list li > span {
+  flex-shrink: 0;
+  width: 92px;
+  display: inline-flex;
+  gap: 0.25rem;
+}
+.shortcut-help-card kbd {
+  display: inline-block;
+  min-width: 1.25rem;
+  text-align: center;
+  padding: 0.125rem 0.375rem;
+  font-family: inherit;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  background: var(--color-canvas-deep);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 4px;
+}
+.shortcut-help-note {
+  margin: 1rem 0 0;
+  font-size: 0.6875rem;
+  color: var(--color-mute);
 }

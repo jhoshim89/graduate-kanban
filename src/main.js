@@ -86,13 +86,22 @@ function showDropPanel(taskId) {
 
   const title = document.createElement("div");
   title.className = "drag-drop-panel-title";
-  title.textContent = "여기로 끌어 놓으세요";
+  title.textContent = "여기 폴더에 놓기";
   panel.appendChild(title);
 
   cats.forEach(c => {
+    const isCur = c === task.category;
     const zone = document.createElement("div");
-    zone.className = "drag-drop-zone" + (c === task.category ? " is-current" : "");
-    zone.textContent = c === task.category ? `${c} (현재)` : c;
+    zone.className = "drag-drop-zone" + (isCur ? " is-current" : "");
+
+    const icon = document.createElement("i");
+    icon.setAttribute("data-lucide", isCur ? "folder-open" : "folder");
+    zone.appendChild(icon);
+
+    const label = document.createElement("span");
+    label.textContent = isCur ? `${c} (현재)` : c;
+    zone.appendChild(label);
+
     zone.addEventListener("dragenter", (e) => { e.preventDefault(); zone.classList.add("over"); });
     zone.addEventListener("dragover", (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; zone.classList.add("over"); });
     zone.addEventListener("dragleave", () => zone.classList.remove("over"));
@@ -108,6 +117,26 @@ function showDropPanel(taskId) {
 
   document.body.appendChild(panel);
   dropPanelEl = panel;
+
+  // 드래그 중인 카드 바로 오른쪽 옆에 붙이기 (공간 없으면 왼쪽)
+  const card = document.querySelector(`.task-card[data-id="${taskId}"]`);
+  if (card) {
+    const r = card.getBoundingClientRect();
+    const pw = 190;
+    let left = r.right + 14;
+    if (left + pw > window.innerWidth - 8) left = Math.max(8, r.left - pw - 14);
+    panel.style.position = "fixed";
+    panel.style.right = "auto";
+    panel.style.transform = "none";
+    panel.style.left = left + "px";
+    panel.style.top = r.top + "px";
+    const ph = panel.offsetHeight;
+    if (r.top + ph > window.innerHeight - 8) {
+      panel.style.top = Math.max(8, window.innerHeight - ph - 8) + "px";
+    }
+  }
+
+  if (window.lucide) window.lucide.createIcons();
 }
 
 function hideDropPanel() {
@@ -607,6 +636,69 @@ if (btnImportData && importFileInput) {
     reader.readAsText(file);
   });
 }
+
+/* ===== 키보드 단축키 ===== */
+function hideShortcutHelp() {
+  const ex = document.getElementById("shortcut-help");
+  if (ex) ex.remove();
+}
+
+function toggleShortcutHelp() {
+  if (document.getElementById("shortcut-help")) { hideShortcutHelp(); return; }
+  const overlay = document.createElement("div");
+  overlay.id = "shortcut-help";
+  overlay.className = "shortcut-help-overlay";
+  overlay.innerHTML = `
+    <div class="shortcut-help-card">
+      <h3>키보드 단축키</h3>
+      <ul class="shortcut-list">
+        <li><span><kbd>N</kbd></span> 새 할 일 입력</li>
+        <li><span><kbd>1</kbd> ~ <kbd>9</kbd></span> 탭 전환 (1 = 전체)</li>
+        <li><span><kbd>B</kbd> <kbd>C</kbd> <kbd>D</kbd></span> 보드 · 달력 · 대시보드</li>
+        <li><span><kbd>?</kbd></span> 이 도움말 열기/닫기</li>
+        <li><span><kbd>Esc</kbd></span> 닫기</li>
+      </ul>
+      <p class="shortcut-help-note">할 일을 입력·편집하는 중에는 단축키가 잠시 멈춰요.</p>
+    </div>`;
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) hideShortcutHelp(); });
+  document.body.appendChild(overlay);
+}
+
+document.addEventListener("keydown", (e) => {
+  const ae = document.activeElement;
+  const tag = ae ? ae.tagName : "";
+  const typing = tag === "INPUT" || tag === "TEXTAREA" || (ae && ae.isContentEditable);
+
+  // Esc는 입력 중이 아니어도 도움말 닫기
+  if (e.code === "Escape") { hideShortcutHelp(); return; }
+  if (typing || e.metaKey || e.ctrlKey || e.altKey || e.isComposing) return;
+
+  if (e.code === "KeyN") {
+    e.preventDefault();
+    if (store.getCurrentView() !== "board") {
+      store.setView("board");
+      setTimeout(focusBoardAddInput, 60);
+    } else {
+      focusBoardAddInput();
+    }
+  } else if (e.code === "KeyB") {
+    store.setView("board");
+  } else if (e.code === "KeyC") {
+    store.setView("calendar");
+  } else if (e.code === "KeyD") {
+    store.setView("dashboard");
+  } else if (/^Digit[1-9]$/.test(e.code)) {
+    const idx = parseInt(e.code.replace("Digit", ""), 10) - 1;
+    const all = [ALL_TAB, ...store.getCategories()];
+    if (idx < all.length) {
+      if (store.getCurrentView() !== "board") store.setView("board");
+      store.setActiveCategory(all[idx]);
+    }
+  } else if (e.key === "?" || (e.code === "Slash" && e.shiftKey)) {
+    e.preventDefault();
+    toggleShortcutHelp();
+  }
+});
 
 document.addEventListener("DOMContentLoaded", () => render(store.state));
 if (document.readyState === "interactive" || document.readyState === "complete") {
