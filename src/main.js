@@ -126,15 +126,19 @@ function openMoveMenu(btn, taskId) {
    Board View — Checklist + Drag-to-Tab + Inline Edit
    ============================================================= */
 function bindBoardEvents() {
-  // A. 카드 드래그 시작/끝 (드롭 대상은 상단 탭)
-  document.querySelectorAll(".task-card").forEach(card => {
-    card.addEventListener("dragstart", (e) => {
-      if (card.querySelector("input")) { e.preventDefault(); return; }
+  // A. 드래그 핸들로만 드래그 시작 (드롭 대상은 상단 탭)
+  document.querySelectorAll(".card-drag-handle").forEach(handle => {
+    handle.addEventListener("dragstart", (e) => {
+      const card = handle.closest(".task-card");
+      if (!card) return;
       e.dataTransfer.setData("text/plain", card.dataset.id);
       e.dataTransfer.effectAllowed = "move";
       setTimeout(() => card.classList.add("dragging"), 0);
     });
-    card.addEventListener("dragend", () => card.classList.remove("dragging"));
+    handle.addEventListener("dragend", () => {
+      const card = handle.closest(".task-card");
+      if (card) card.classList.remove("dragging");
+    });
   });
 
   // B. 새 할 일 인라인 추가

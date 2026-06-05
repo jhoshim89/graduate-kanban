@@ -1199,3 +1199,38 @@
 .task-card.dragging {
   opacity: 0.4;
 }
+
+/* ==========================================
+   아이콘 크기 유틸 (Tailwind 미사용 → 직접 정의)
+   lucide SVG 기본 24px을 의도한 크기로 축소
+   ========================================== */
+.w-2 { width: 0.5rem; }
+.h-2 { height: 0.5rem; }
+.w-2\.5 { width: 0.625rem; }
+.h-2\.5 { height: 0.625rem; }
+.w-3 { width: 0.75rem; }
+.h-3 { height: 0.75rem; }
+.w-3\.5 { width: 0.875rem; }
+.h-3\.5 { height: 0.875rem; }
+.w-4 { width: 1rem; }
+.h-4 { height: 1rem; }
+
+/* 카드 드래그 핸들 (끌어서 다른 탭으로 이동) */
+.card-drag-handle {
+  background: transparent;
+  border: none;
+  color: var(--color-mute);
+  cursor: grab;
+  padding: 2px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+.card-drag-handle:hover {
+  color: var(--color-ink);
+  background: var(--color-canvas-soft);
+}
+.card-drag-handle:active {
+  cursor: grabbing;
+}

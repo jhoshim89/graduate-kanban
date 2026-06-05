@@ -83,7 +83,7 @@ function renderCard(task, showCategoryBadge) {
     : "";
 
   return `
-    <div class="task-card card-reminder ${isDone ? 'is-done' : ''}" draggable="true" data-id="${task.id}">
+    <div class="task-card card-reminder ${isDone ? 'is-done' : ''}" data-id="${task.id}">
       <div class="reminder-left-slot">
         <button class="reminder-check-btn" data-id="${task.id}" data-status="${task.status}" title="완료 토글">
           <i data-lucide="${checkIcon}" class="w-4 h-4 ${checkColor}"></i>
@@ -95,7 +95,10 @@ function renderCard(task, showCategoryBadge) {
       </div>
 
       <div class="reminder-right-slot">
-        <button class="card-move-btn" data-id="${task.id}" title="다른 탭으로 옮기기" aria-label="다른 탭으로 옮기기">
+        <button class="card-drag-handle" draggable="true" data-id="${task.id}" title="끌어서 다른 탭으로 이동" aria-label="드래그 핸들">
+          <i data-lucide="grip-vertical" class="w-3.5 h-3.5"></i>
+        </button>
+        <button class="card-move-btn" data-id="${task.id}" title="다른 탭으로 옮기기 (목록에서 선택)" aria-label="다른 탭으로 옮기기">
           <i data-lucide="folder-input" class="w-3.5 h-3.5"></i>
         </button>
         <div class="task-card-due ${dueClass}" data-id="${task.id}" title="클릭하여 마감일 수정">
