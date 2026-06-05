@@ -13,7 +13,7 @@ export function renderDashboard() {
   // 1. 전체 통계
   const total = tasks.length;
   const done = tasks.filter(t => t.status === "done").length;
-  const inprogress = tasks.filter(t => t.status === "inprogress").length;
+  const notDone = total - done;
   const doneRate = total > 0 ? Math.round((done / total) * 100) : 0;
 
   // 2. 긴급 / 지연 과제 (오늘 포함 이전, 미완료)
@@ -37,9 +37,8 @@ export function renderDashboard() {
     const list = tasks.filter(t => t.category === cat);
     const cTotal = list.length;
     const cDone = list.filter(t => t.status === "done").length;
-    const cInprog = list.filter(t => t.status === "inprogress").length;
     const cRate = cTotal > 0 ? Math.round((cDone / cTotal) * 100) : 0;
-    return { cat, total: cTotal, done: cDone, inprogress: cInprog, rate: cRate };
+    return { cat, total: cTotal, done: cDone, rate: cRate };
   });
 
   return `
@@ -56,7 +55,7 @@ export function renderDashboard() {
           </div>
           <div class="flex justify-between items-baseline mt-1">
             <div class="text-2xl font-semibold text-ink">${doneRate}% <span class="text-xs text-mute font-normal">완료율</span></div>
-            <div class="text-xs text-mute font-mono">진행 ${inprogress} 건 / 전체 ${total} 건</div>
+            <div class="text-xs text-mute font-mono">미완료 ${notDone} 건 / 전체 ${total} 건</div>
           </div>
           <div class="w-full bg-canvas-deep h-1.5 rounded-full overflow-hidden border border-border mt-1">
             <div class="h-full transition-all duration-500" style="width: ${doneRate}%; background: var(--color-accent); border-radius: 9999px;"></div>
@@ -146,7 +145,6 @@ export function renderDashboard() {
                     <div class="text-[9px] font-mono text-error font-semibold" style="color:var(--color-error)">${dueInfo.text}</div>
                   </div>
                   <div class="flex items-center gap-1">
-                    <button class="btn-quick-inprogress btn-secondary px-2 py-0.5 text-[9px] rounded" data-id="${task.id}">진행</button>
                     <button class="btn-quick-done btn-primary px-2 py-0.5 text-[9px] rounded" data-id="${task.id}">완료</button>
                   </div>
                 </div>

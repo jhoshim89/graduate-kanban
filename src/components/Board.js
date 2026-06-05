@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------
- * Kanban Board Component Renderer (Category-Tab Based)
- * 상단 카테고리 탭(전체/일상/개발/+추가)으로 할 일을 분류해서 본다.
+ * Board Component (Category-Tab Checklist)
+ * 진행 단계(칸반 3컬럼) 없이, 탭별 단순 할 일 체크리스트.
+ * 미완료는 위, 완료는 아래에 흐리게. 카드는 다른 탭으로 이동 가능.
  * ------------------------------------------------------------- */
 import { store, ALL_TAB } from "../store.js";
 
@@ -33,13 +34,12 @@ export function getDueStatus(dueDateStr) {
 }
 
 /**
- * 상단 카테고리 탭 바 렌더.
- * '전체' 탭 + 사용자 정의 탭들 + '탭 추가' 버튼.
+ * 상단 카테고리 탭 바. '전체' + 사용자 탭들 + '탭 추가'.
+ * 각 탭은 카드 드롭 대상(드래그로 카드를 떨어뜨리면 그 탭으로 이동).
  */
 function renderCategoryTabs() {
   const categories = store.getCategories();
   const activeCat = store.getActiveCategory();
-
   const allActive = activeCat === ALL_TAB ? "active" : "";
 
   return `
@@ -51,12 +51,12 @@ function renderCategoryTabs() {
         const isActive = activeCat === c ? "active" : "";
         const safe = escapeHTML(c);
         return `
-          <span class="cat-tab-wrap ${isActive}">
-            <button class="cat-tab cat-tab-named ${isActive}" data-cat="${safe}" role="tab" title="더블클릭하면 이름을 바꿀 수 있어요">
+          <span class="cat-tab-wrap ${isActive}" data-cat="${safe}">
+            <button class="cat-tab cat-tab-named ${isActive}" data-cat="${safe}" role="tab" title="더블클릭하면 이름 변경 · 카드를 끌어다 놓으면 이 탭으로 이동">
               ${safe}
             </button>
             <button class="cat-tab-delete" data-cat="${safe}" title="'${safe}' 탭 삭제" aria-label="탭 삭제">
-              <i data-lucide="x" class="w-3 h-3"></i>
+              <i data-lucide="x" class="w-2 h-2"></i>
             </button>
           </span>
         `;
@@ -69,115 +69,80 @@ function renderCategoryTabs() {
   `;
 }
 
+function renderCard(task, showCategoryBadge) {
+  const isDone = task.status === "done";
+  const dueInfo = getDueStatus(task.dueDate);
+  const titleClass = isDone ? 'task-card-title inline-edit-title line-through' : 'task-card-title inline-edit-title';
+  const dueClass = isDone ? 'text-mute' : dueInfo.class;
+  const checkIcon = isDone ? "check-circle-2" : "circle";
+  const checkColor = isDone ? "text-violet" : "text-mute";
+
+  const escapedTitle = escapeHTML(task.title);
+  const categoryBadge = showCategoryBadge && task.category
+    ? `<span class="card-category-badge">${escapeHTML(task.category)}</span>`
+    : "";
+
+  return `
+    <div class="task-card card-reminder ${isDone ? 'is-done' : ''}" draggable="true" data-id="${task.id}">
+      <div class="reminder-left-slot">
+        <button class="reminder-check-btn" data-id="${task.id}" data-status="${task.status}" title="완료 토글">
+          <i data-lucide="${checkIcon}" class="w-4 h-4 ${checkColor}"></i>
+        </button>
+        <div class="${titleClass}" data-id="${task.id}" title="${escapedTitle} (더블 클릭하여 수정)">
+          ${escapedTitle}
+          ${categoryBadge}
+        </div>
+      </div>
+
+      <div class="reminder-right-slot">
+        <button class="card-move-btn" data-id="${task.id}" title="다른 탭으로 옮기기" aria-label="다른 탭으로 옮기기">
+          <i data-lucide="folder-input" class="w-3.5 h-3.5"></i>
+        </button>
+        <div class="task-card-due ${dueClass}" data-id="${task.id}" title="클릭하여 마감일 수정">
+          <i data-lucide="calendar" class="w-2.5 h-2.5"></i>
+          <span class="due-text">${dueInfo.text}</span>
+        </div>
+        <button class="card-action-btn delete-task-btn" data-id="${task.id}" title="할 일 삭제" aria-label="할 일 삭제">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+    </div>
+  `;
+}
+
 /**
- * 단일 칸반 보드 렌더 (현재 활성 탭의 할 일만 표시).
- * '전체' 탭일 때는 각 카드에 카테고리 배지를 함께 보여준다.
+ * 현재 활성 탭의 할 일을 단일 리스트로 렌더.
+ * 미완료(위) → 완료(아래, 흐리게).
  */
 export function renderBoard() {
   const tasks = store.getVisibleTasks();
   const showCategoryBadge = store.getActiveCategory() === ALL_TAB;
 
-  const columns = {
-    todo: { title: "To Do", icon: "circle", colorClass: "col-todo", iconColor: "text-mute", tasks: [] },
-    inprogress: { title: "In Progress", icon: "play", colorClass: "col-inprogress", iconColor: "text-accent", tasks: [] },
-    done: { title: "Done", icon: "check-circle", colorClass: "col-done", iconColor: "text-violet", tasks: [] }
-  };
+  const active = tasks.filter(t => t.status !== "done");
+  const doneTasks = tasks.filter(t => t.status === "done");
 
-  tasks.forEach(task => {
-    if (columns[task.status]) {
-      columns[task.status].tasks.push(task);
-    }
-  });
+  const emptyState = (active.length === 0 && doneTasks.length === 0)
+    ? `<div class="empty-state list-empty"><span>이 탭에 할 일이 없어요. 아래에 입력해서 추가하세요.</span></div>`
+    : "";
 
   return `
     ${renderCategoryTabs()}
-    <div class="board-grid">
-      ${Object.entries(columns).map(([status, col]) => {
-        const colClass = `board-column ${col.colorClass}`;
-        return `
-          <div class="${colClass}" data-status="${status}">
-            <!-- Column Header -->
-            <div class="column-header">
-              <h2 class="column-title">
-                <i data-lucide="${col.icon}" class="w-3.5 h-3.5 ${col.iconColor}"></i>
-                <span>${col.title}</span>
-                <span class="column-badge">${col.tasks.length}</span>
-              </h2>
-            </div>
+    <div class="todo-list-wrap">
+      <div class="todo-list">
+        ${emptyState}
+        ${active.map(t => renderCard(t, showCategoryBadge)).join("")}
+        ${doneTasks.length ? `<div class="done-divider"><span>완료됨 ${doneTasks.length}</span></div>` : ""}
+        ${doneTasks.map(t => renderCard(t, showCategoryBadge)).join("")}
+      </div>
 
-            <!-- Cards Drop Area (Apple Reminders slim list) -->
-            <div class="column-cards-area" data-status="${status}">
-              ${col.tasks.length === 0 ? `
-                <div class="empty-state">
-                  <span>비어 있음</span>
-                </div>
-              ` : col.tasks.map(task => {
-                const dueInfo = getDueStatus(task.dueDate);
-                const isDone = task.status === "done";
-                const isInProgress = task.status === "inprogress";
-
-                const cardClass = `task-card card-reminder`;
-                const titleClass = isDone ? 'task-card-title inline-edit-title line-through' : 'task-card-title inline-edit-title';
-                const dueClass = isDone ? 'text-mute' : dueInfo.class;
-
-                let checkIcon = "circle";
-                let checkColor = "text-mute";
-                if (isDone) {
-                  checkIcon = "check-circle-2";
-                  checkColor = "text-violet";
-                } else if (isInProgress) {
-                  checkIcon = "play-circle";
-                  checkColor = "text-accent";
-                }
-
-                const escapedTitle = escapeHTML(task.title);
-                const categoryBadge = showCategoryBadge && task.category
-                  ? `<span class="card-category-badge">${escapeHTML(task.category)}</span>`
-                  : "";
-
-                return `
-                  <div class="${cardClass}" draggable="true" data-id="${task.id}">
-                    <!-- Left Slot: Check Circle + Title -->
-                    <div class="reminder-left-slot">
-                      <button class="reminder-check-btn" data-id="${task.id}" data-status="${task.status}" title="상태 토글">
-                        <i data-lucide="${checkIcon}" class="w-4 h-4 ${checkColor}"></i>
-                      </button>
-
-                      <div class="${titleClass}" data-id="${task.id}" title="${escapedTitle} (더블 클릭하여 수정)">
-                        ${escapedTitle}
-                        ${categoryBadge}
-                      </div>
-                    </div>
-
-                    <!-- Right Slot: Due Date Badge & Delete Action -->
-                    <div class="reminder-right-slot">
-                      <div class="task-card-due ${dueClass}" data-id="${task.id}" title="클릭하여 마감일 수정">
-                        <i data-lucide="calendar" class="w-2.5 h-2.5"></i>
-                        <span class="due-text">${dueInfo.text}</span>
-                      </div>
-
-                      <button class="card-action-btn delete-task-btn" data-id="${task.id}" title="할 일 삭제" aria-label="할 일 삭제">
-                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                      </button>
-                    </div>
-                  </div>
-                `;
-              }).join("")}
-            </div>
-
-            <!-- Static Zero-Click Inline Addition Input -->
-            <div class="static-inline-add mt-2" data-status="${status}">
-              <input
-                type="text"
-                class="static-title-input form-input"
-                placeholder="+ 할 일 입력 (예: 동물병원 6/17)"
-                autocomplete="off"
-              />
-            </div>
-
-          </div>
-        `;
-      }).join("")}
+      <div class="static-inline-add" data-status="todo">
+        <input
+          type="text"
+          class="static-title-input form-input"
+          placeholder="+ 할 일 입력 (예: 동물병원 6/17)"
+          autocomplete="off"
+        />
+      </div>
     </div>
   `;
 }
