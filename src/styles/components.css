@@ -962,6 +962,9 @@
 }
 
 .cat-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   color: var(--color-mute);
   border: 1px solid transparent;
@@ -972,7 +975,7 @@
   cursor: pointer;
   transition: color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
   white-space: nowrap;
-  line-height: 1.2;
+  line-height: 1;
 }
 
 .cat-tab:hover {
