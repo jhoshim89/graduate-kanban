@@ -5,6 +5,13 @@
  * ------------------------------------------------------------- */
 import { store, ALL_TAB } from "../store.js";
 
+// 탭(카테고리)별 구분 색 — 추가된 순서대로 순환
+const TAB_COLORS = ['#0070f3', '#7928ca', '#10b981', '#f5a623', '#e91e63', '#06b6d4', '#d946ef', '#ef4444'];
+export function getCategoryColor(cat) {
+  const idx = store.getCategories().indexOf(cat);
+  return idx < 0 ? '#9aa0a6' : TAB_COLORS[idx % TAB_COLORS.length];
+}
+
 // Helper to check due date urgency
 export function getDueStatus(dueDateStr) {
   if (!dueDateStr) return { class: "due-none", text: "기한 없음" };
@@ -45,15 +52,18 @@ function renderCategoryTabs() {
   return `
     <div class="category-tabs" role="tablist">
       <button class="cat-tab ${allActive}" data-cat="${ALL_TAB}" role="tab">
-        전체
+        <span class="cat-tab-num">1</span>전체
       </button>
-      ${categories.map(c => {
+      ${categories.map((c, i) => {
         const isActive = activeCat === c ? "active" : "";
         const safe = escapeHTML(c);
+        const num = i + 2;
+        const color = getCategoryColor(c);
+        const numHtml = num <= 9 ? `<span class="cat-tab-num">${num}</span>` : "";
         return `
           <span class="cat-tab-wrap ${isActive}" data-cat="${safe}">
             <button class="cat-tab cat-tab-named ${isActive}" data-cat="${safe}" role="tab" title="더블클릭하면 이름 변경 · 카드를 끌어다 놓으면 이 탭으로 이동">
-              ${safe}
+              ${numHtml}<span class="cat-tab-dot" style="background:${color}"></span>${safe}
             </button>
             <button class="cat-tab-delete" data-cat="${safe}" title="'${safe}' 탭 삭제" aria-label="탭 삭제">
               <i data-lucide="x" class="w-2 h-2"></i>
@@ -79,7 +89,7 @@ function renderCard(task, showCategoryBadge) {
 
   const escapedTitle = escapeHTML(task.title);
   const categoryBadge = showCategoryBadge && task.category
-    ? `<span class="card-category-badge">${escapeHTML(task.category)}</span>`
+    ? `<span class="card-category-badge"><span class="cat-dot-mini" style="background:${getCategoryColor(task.category)}"></span>${escapeHTML(task.category)}</span>`
     : "";
 
   return `

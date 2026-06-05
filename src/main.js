@@ -410,9 +410,9 @@ function bindCategoryTabEvents() {
         const val = input.value.trim();
         if (commit && val && val !== oldName) {
           const r = store.renameCategory(oldName, val);
-          if (!r.ok && r.message) { window.alert(r.message); tab.textContent = oldName; }
+          if (!r.ok) { if (r.message) window.alert(r.message); store.notify(); }
         } else {
-          tab.textContent = oldName;
+          store.notify(); // 취소: 재렌더로 탭(번호·색점) 원상복구
         }
       };
       input.addEventListener("keydown", (evt) => {
