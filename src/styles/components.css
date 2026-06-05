@@ -1234,3 +1234,49 @@
 .card-drag-handle:active {
   cursor: grabbing;
 }
+
+/* 드래그 시작 시 옆 빈 공간에 뜨는 탭 드롭 패널 */
+.drag-drop-panel {
+  position: fixed;
+  top: 50%;
+  right: 40px;
+  transform: translateY(-50%);
+  z-index: 2000;
+  width: 220px;
+  background: var(--color-canvas);
+  border: 2px dashed var(--color-accent);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.drag-drop-panel-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-mute);
+  text-align: center;
+  margin-bottom: 0.25rem;
+}
+.drag-drop-zone {
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-canvas-soft);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-ink);
+  text-align: center;
+  cursor: pointer;
+  transition: transform var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+.drag-drop-zone.over {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  transform: scale(1.04);
+}
+.drag-drop-zone.is-current {
+  opacity: 0.45;
+}

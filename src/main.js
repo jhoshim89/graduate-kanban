@@ -71,6 +71,49 @@ function closeMoveMenu() {
   if (m) m.remove();
 }
 
+
+/* ===== 드래그 시작 시 옆에 뜨는 탭 드롭 패널 ===== */
+let dropPanelEl = null;
+
+function showDropPanel(taskId) {
+  hideDropPanel();
+  const task = store.getTasks().find(t => t.id === taskId);
+  if (!task) return;
+  const cats = store.getCategories();
+
+  const panel = document.createElement("div");
+  panel.className = "drag-drop-panel";
+
+  const title = document.createElement("div");
+  title.className = "drag-drop-panel-title";
+  title.textContent = "여기로 끌어 놓으세요";
+  panel.appendChild(title);
+
+  cats.forEach(c => {
+    const zone = document.createElement("div");
+    zone.className = "drag-drop-zone" + (c === task.category ? " is-current" : "");
+    zone.textContent = c === task.category ? `${c} (현재)` : c;
+    zone.addEventListener("dragenter", (e) => { e.preventDefault(); zone.classList.add("over"); });
+    zone.addEventListener("dragover", (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; zone.classList.add("over"); });
+    zone.addEventListener("dragleave", () => zone.classList.remove("over"));
+    zone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const id = e.dataTransfer.getData("text/plain") || taskId;
+      store.updateTask(id, { category: c });
+      hideDropPanel();
+    });
+    panel.appendChild(zone);
+  });
+
+  document.body.appendChild(panel);
+  dropPanelEl = panel;
+}
+
+function hideDropPanel() {
+  if (dropPanelEl) { dropPanelEl.remove(); dropPanelEl = null; }
+}
+
 function openMoveMenu(btn, taskId) {
   closeMoveMenu();
   const task = store.getTasks().find(t => t.id === taskId);
@@ -134,10 +177,12 @@ function bindBoardEvents() {
       e.dataTransfer.setData("text/plain", card.dataset.id);
       e.dataTransfer.effectAllowed = "move";
       setTimeout(() => card.classList.add("dragging"), 0);
+      showDropPanel(card.dataset.id); // 옆에 탭 드롭 목록 띄우기
     });
     handle.addEventListener("dragend", () => {
       const card = handle.closest(".task-card");
       if (card) card.classList.remove("dragging");
+      hideDropPanel();
     });
   });
 
