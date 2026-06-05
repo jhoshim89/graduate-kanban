@@ -52,18 +52,22 @@ function renderCategoryTabs() {
   return `
     <div class="category-tabs" role="tablist">
       <button class="cat-tab ${allActive}" data-cat="${ALL_TAB}" role="tab">
-        <span class="cat-tab-num">1</span>전체
+        전체 <span class="cat-tab-num">1</span>
       </button>
       ${categories.map((c, i) => {
-        const isActive = activeCat === c ? "active" : "";
+        const isActiveBool = activeCat === c;
+        const isActive = isActiveBool ? "active" : "";
         const safe = escapeHTML(c);
         const num = i + 2;
         const color = getCategoryColor(c);
-        const numHtml = num <= 9 ? `<span class="cat-tab-num">${num}</span>` : "";
+        const numHtml = num <= 9 ? ` <span class="cat-tab-num">${num}</span>` : "";
+        const tabStyle = isActiveBool
+          ? `background:${color};color:#fff;border-color:${color};`
+          : `background:${color}1a;color:${color};border-color:${color}40;`;
         return `
           <span class="cat-tab-wrap ${isActive}" data-cat="${safe}">
-            <button class="cat-tab cat-tab-named ${isActive}" data-cat="${safe}" role="tab" title="더블클릭하면 이름 변경 · 카드를 끌어다 놓으면 이 탭으로 이동">
-              ${numHtml}<span class="cat-tab-dot" style="background:${color}"></span>${safe}
+            <button class="cat-tab cat-tab-named ${isActive}" data-cat="${safe}" role="tab" style="${tabStyle}" title="더블클릭하면 이름 변경 · 카드를 끌어다 놓으면 이 탭으로 이동">
+              ${safe}${numHtml}
             </button>
             <button class="cat-tab-delete" data-cat="${safe}" title="'${safe}' 탭 삭제" aria-label="탭 삭제">
               <i data-lucide="x" class="w-2 h-2"></i>
@@ -88,8 +92,9 @@ function renderCard(task, showCategoryBadge) {
   const checkColor = isDone ? "text-violet" : "text-mute";
 
   const escapedTitle = escapeHTML(task.title);
+  const catColor = task.category ? getCategoryColor(task.category) : "";
   const categoryBadge = showCategoryBadge && task.category
-    ? `<span class="card-category-badge"><span class="cat-dot-mini" style="background:${getCategoryColor(task.category)}"></span>${escapeHTML(task.category)}</span>`
+    ? `<span class="card-category-badge" style="background:${catColor}1a;color:${catColor};border-color:${catColor}66">${escapeHTML(task.category)}</span>`
     : "";
 
   return `
