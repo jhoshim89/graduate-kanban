@@ -2,7 +2,7 @@
  * Main Application Logic & Event Controller
  * Category-Tab Checklist + Calendar + Dashboard
  * ------------------------------------------------------------- */
-import { store, ALL_TAB } from "./store.js";
+import { store, ALL_TAB, SYNC_APP_URL } from "./store.js";
 import { renderBoard } from "./components/Board.js";
 import { renderCalendar } from "./components/Calendar.js";
 import { renderDashboard } from "./components/Dashboard.js";
@@ -14,6 +14,10 @@ const btnBoardView = document.getElementById("btn-board-view");
 const btnCalendarView = document.getElementById("btn-calendar-view");
 const btnDashboardView = document.getElementById("btn-dashboard-view");
 const btnAddTask = document.getElementById("btn-add-task");
+const btnMigrateSync = document.getElementById("btn-migrate-sync");
+const btnSyncNow = document.getElementById("btn-sync-now");
+const syncStatusText = document.getElementById("sync-status-text");
+const syncStatusIcon = document.getElementById("sync-status-icon");
 
 let activeFocusElementInfo = null;
 
@@ -43,6 +47,88 @@ function render(state) {
 }
 
 store.subscribe(render);
+
+function renderSyncStatus(sync) {
+  if (!btnSyncNow || !syncStatusText || !syncStatusIcon) return;
+
+  const status = sync && sync.status ? sync.status : "local";
+  const iconByStatus = {
+    local: "hard-drive",
+    connecting: "cloud",
+    syncing: "refresh-cw",
+    synced: "cloud-check",
+    error: "cloud-alert"
+  };
+
+  btnSyncNow.dataset.status = status;
+  syncStatusIcon.setAttribute("data-lucide", iconByStatus[status] || "cloud");
+  syncStatusText.textContent = sync && sync.message ? sync.message : "이 브라우저";
+  btnSyncNow.title = sync && sync.error ? sync.error : "동기화 새로고침";
+  if (window.lucide) window.lucide.createIcons();
+}
+
+window.addEventListener("graduate-kanban-sync", (event) => renderSyncStatus(event.detail));
+
+function encodeMigrationPayload(snapshot) {
+  const json = JSON.stringify(snapshot);
+  const bytes = new TextEncoder().encode(json);
+  let binary = "";
+  bytes.forEach(byte => { binary += String.fromCharCode(byte); });
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function decodeMigrationPayload(encoded) {
+  const base64 = encoded.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(encoded.length / 4) * 4, "=");
+  const binary = atob(base64);
+  const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+
+function showMigrationButton() {
+  if (!btnMigrateSync) return;
+  const sync = store.getSyncState();
+  btnMigrateSync.hidden = Boolean(sync.enabled);
+}
+
+function startLocalMigration() {
+  const snapshot = store.createSnapshot();
+  const count = Array.isArray(snapshot.tasks) ? snapshot.tasks.length : 0;
+  const ok = window.confirm(`이 브라우저에 있는 할 일 ${count}개와 메모를 Google 동기화판으로 옮길까요?`);
+  if (!ok) return;
+
+  try {
+    const payload = encodeMigrationPayload(snapshot);
+    window.location.href = `${SYNC_APP_URL}#import=${payload}`;
+  } catch (error) {
+    window.alert(`자동 이동 준비 중 오류가 났어요: ${error.message || error}`);
+  }
+}
+
+async function consumeMigrationHash() {
+  if (!store.getSyncState().enabled) return false;
+  const match = window.location.hash.match(/^#import=(.+)$/);
+  if (!match) return false;
+
+  try {
+    const snapshot = decodeMigrationPayload(match[1]);
+    window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    const count = Array.isArray(snapshot.tasks) ? snapshot.tasks.length : 0;
+    const ok = window.confirm(`이전 보드의 할 일 ${count}개와 메모를 Google Sheets 동기화판에 저장할까요?`);
+    if (!ok) {
+      store.initRemoteSync();
+      return true;
+    }
+
+    store.importSnapshotData(snapshot);
+    await store.initRemoteSync(true);
+    window.alert("이전 보드 내용을 동기화판으로 옮겼어요.");
+    return true;
+  } catch (error) {
+    window.alert(`이전 보드 내용을 읽지 못했어요: ${error.message || error}`);
+    store.initRemoteSync();
+    return true;
+  }
+}
 
 
 /* ===== Focus Recovery ===== */
@@ -582,6 +668,8 @@ function bindDashboardEvents() {
 btnBoardView.addEventListener("click", () => store.setView("board"));
 btnCalendarView.addEventListener("click", () => store.setView("calendar"));
 btnDashboardView.addEventListener("click", () => store.setView("dashboard"));
+if (btnMigrateSync) btnMigrateSync.addEventListener("click", startLocalMigration);
+if (btnSyncNow) btnSyncNow.addEventListener("click", () => store.refreshFromRemote(true));
 
 btnAddTask.addEventListener("click", () => {
   if (store.getCurrentView() !== "board") {
@@ -700,7 +788,22 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-document.addEventListener("DOMContentLoaded", () => render(store.state));
-if (document.readyState === "interactive" || document.readyState === "complete") {
+async function bootstrap() {
   render(store.state);
+  renderSyncStatus(store.getSyncState());
+  showMigrationButton();
+  const consumedMigration = await consumeMigrationHash();
+  if (!consumedMigration) store.initRemoteSync();
+}
+
+let didBootstrap = false;
+function bootstrapOnce() {
+  if (didBootstrap) return;
+  didBootstrap = true;
+  bootstrap();
+}
+
+document.addEventListener("DOMContentLoaded", bootstrapOnce);
+if (document.readyState === "interactive" || document.readyState === "complete") {
+  bootstrapOnce();
 }

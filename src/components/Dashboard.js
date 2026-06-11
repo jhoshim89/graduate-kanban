@@ -9,6 +9,8 @@ export function renderDashboard() {
   const tasks = store.getTasks();
   const categories = store.getCategories();
   const memoText = store.getMemo();
+  const sync = store.getSyncState();
+  const saveLabel = sync.enabled ? "Google Sheets 자동 저장" : "이 브라우저에 자동 저장";
 
   // 1. 전체 통계
   const total = tasks.length;
@@ -169,7 +171,7 @@ export function renderDashboard() {
             >${escapeHTML(memoText)}</textarea>
             <div class="flex items-center justify-end text-[10px] text-mute font-mono pt-2 border-t border-border">
               <i data-lucide="cloud-lightning" class="w-3 h-3 mr-1 text-accent"></i>
-              <span>Typing auto-saves in local storage</span>
+              <span>${saveLabel}</span>
             </div>
           </div>
         </div>
