@@ -3,10 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🎓 대학원 할 일 보드 (Graduate Kanban & Calendar)</title>
+  <title>Kanban Sync</title>
   <!-- SEO & Meta Tags -->
   <meta name="description" content="대학원생들의 연구 과제, 할 일(태스크) 목록을 시각적으로 일목요연하게 관리하고 마감일(Due Date)을 직관적으로 트래킹할 수 있는 프리미엄 대형 칸반 보드 및 캘린더">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎓</text></svg>">
+  <meta name="theme-color" content="#0070f3">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230070f3'/%3E%3Crect x='12' y='14' width='12' height='36' rx='3' fill='white' fill-opacity='.95'/%3E%3Crect x='28' y='14' width='12' height='26' rx='3' fill='%2310b981'/%3E%3Crect x='44' y='14' width='8' height='18' rx='3' fill='white' fill-opacity='.75'/%3E%3C/svg%3E">
+  <link rel="shortcut icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230070f3'/%3E%3Crect x='12' y='14' width='12' height='36' rx='3' fill='white' fill-opacity='.95'/%3E%3Crect x='28' y='14' width='12' height='26' rx='3' fill='%2310b981'/%3E%3Crect x='44' y='14' width='8' height='18' rx='3' fill='white' fill-opacity='.75'/%3E%3C/svg%3E">
   
   <!-- Font Load (Inter from Google Fonts) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -17,8 +19,8 @@
   <script src="https://unpkg.com/lucide@latest"></script>
 
   <!-- Local Stylesheets -->
-  <script type="module" crossorigin src="/graduate-kanban/assets/index-9DnMmQu_.js"></script>
-  <link rel="stylesheet" crossorigin href="/graduate-kanban/assets/index-DMeQRRbT.css">
+  <script type="module" crossorigin src="/graduate-kanban/assets/index-CnzqBCfc.js"></script>
+  <link rel="stylesheet" crossorigin href="/graduate-kanban/assets/index-f56unOeh.css">
 </head>
 <body class="bg-canvas text-ink antialiased">
 
@@ -63,6 +65,14 @@
           <i data-lucide="upload" class="w-3.5 h-3.5"></i>
           <span>불러오기</span>
         </button>
+        <button id="btn-migrate-sync" class="sync-migrate-btn" aria-label="동기화판으로 옮기기" title="이 브라우저의 할 일을 Google 동기화판으로 옮기기" hidden>
+          <i data-lucide="send" class="w-3.5 h-3.5"></i>
+          <span>동기화판으로 옮기기</span>
+        </button>
+        <button id="btn-sync-now" class="sync-status-pill" aria-label="동기화 새로고침" title="동기화 새로고침">
+          <i id="sync-status-icon" data-lucide="hard-drive" class="w-3.5 h-3.5"></i>
+          <span id="sync-status-text">이 브라우저</span>
+        </button>
         <input id="import-file-input" type="file" accept="application/json,.json" class="hidden" style="display:none" />
       </div>
     </header>
@@ -85,5 +95,59 @@
   <div id="modal-container" class="modal-root z-50"></div>
 
   <!-- App Core JavaScript -->
+  <script>
+    (() => {
+      const syncUrl = "https://script.google.com/macros/s/AKfycbwcB7-zS24yffC5SbHnok1oHDZdNQncm5Z60d5YqB-jvnleBoCOCODgMlxDJMjocO_Cmw/exec";
+      const btn = document.getElementById("btn-migrate-sync");
+      const hasAppsScript = Boolean(window.google && window.google.script && window.google.script.run);
+      if (!btn || hasAppsScript || btn.dataset.migrationBound) return;
+
+      const readJson = (key, fallback) => {
+        try {
+          const raw = localStorage.getItem(key);
+          return raw ? JSON.parse(raw) : fallback;
+        } catch (error) {
+          return fallback;
+        }
+      };
+      const encode = (data) => {
+        const bytes = new TextEncoder().encode(JSON.stringify(data));
+        let binary = "";
+        bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+        return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+      };
+
+      Object.assign(btn.style, {
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "6px",
+        height: "34px",
+        padding: "0 12px",
+        border: "1px solid #0070f3",
+        borderRadius: "6px",
+        background: "#0070f3",
+        color: "#fff",
+        fontSize: "12px",
+        fontWeight: "600",
+        cursor: "pointer"
+      });
+      btn.hidden = false;
+      btn.dataset.migrationBound = "1";
+      btn.addEventListener("click", () => {
+        const snapshot = {
+          _app: "graduate-kanban",
+          _version: 4,
+          tasks: readJson("graduate_kanban_tasks_v2", []),
+          categories: readJson("graduate_kanban_categories_v2", []),
+          activeCategory: localStorage.getItem("graduate_kanban_active_category_v2") || "__all__",
+          memo: localStorage.getItem("graduate_kanban_memo_v2") || "",
+          currentView: localStorage.getItem("graduate_kanban_view_v2") || "board"
+        };
+        const count = Array.isArray(snapshot.tasks) ? snapshot.tasks.length : 0;
+        if (!window.confirm(`이 브라우저에 있는 할 일 ${count}개와 메모를 Google 동기화판으로 옮길까요?`)) return;
+        window.location.href = `${syncUrl}#import=${encode(snapshot)}`;
+      });
+    })();
+  </script>
 </body>
 </html>
