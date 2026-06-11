@@ -15,6 +15,7 @@ const btnCalendarView = document.getElementById("btn-calendar-view");
 const btnDashboardView = document.getElementById("btn-dashboard-view");
 const btnAddTask = document.getElementById("btn-add-task");
 const btnMigrateSync = document.getElementById("btn-migrate-sync");
+const btnThemeToggle = document.getElementById("btn-theme-toggle");
 const btnSyncNow = document.getElementById("btn-sync-now");
 const syncStatusText = document.getElementById("sync-status-text");
 const syncStatusIcon = document.getElementById("sync-status-icon");
@@ -23,6 +24,9 @@ let activeFocusElementInfo = null;
 
 function render(state) {
   const currentView = state.currentView;
+
+  applyTheme(state.theme);
+  renderThemeToggle(state.theme);
 
   btnBoardView.classList.toggle("active", currentView === "board");
   btnCalendarView.classList.toggle("active", currentView === "calendar");
@@ -68,6 +72,27 @@ function renderSyncStatus(sync) {
 }
 
 window.addEventListener("graduate-kanban-sync", (event) => renderSyncStatus(event.detail));
+
+function applyTheme(theme) {
+  const isDark = theme === "dark";
+  document.documentElement.classList.toggle("theme-dark", isDark);
+  document.body.classList.toggle("theme-dark", isDark);
+  document.documentElement.style.colorScheme = isDark ? "dark" : "light";
+  const themeMeta = document.querySelector('meta[name="theme-color"]');
+  if (themeMeta) themeMeta.setAttribute("content", isDark ? "#0f1115" : "#0070f3");
+}
+
+function renderThemeToggle(theme) {
+  if (!btnThemeToggle) return;
+  const isDark = theme === "dark";
+  const icon = btnThemeToggle.querySelector("i");
+  const label = btnThemeToggle.querySelector("span");
+  btnThemeToggle.setAttribute("aria-pressed", String(isDark));
+  btnThemeToggle.setAttribute("aria-label", isDark ? "라이트 모드 전환" : "다크 모드 전환");
+  btnThemeToggle.title = isDark ? "라이트 모드 전환" : "다크 모드 전환";
+  if (icon) icon.setAttribute("data-lucide", isDark ? "sun" : "moon");
+  if (label) label.textContent = isDark ? "라이트" : "다크";
+}
 
 function encodeMigrationPayload(snapshot) {
   const json = JSON.stringify(snapshot);
@@ -449,14 +474,33 @@ function bindBoardEvents() {
       openMoveMenu(btn, btn.dataset.id);
     });
   });
+
+  const doneToggleBtn = document.getElementById("done-toggle-btn");
+  if (doneToggleBtn) {
+    doneToggleBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      store.toggleCompletedHidden();
+    });
+  }
 }
 
 
 /* ===== Category Tab Bar ===== */
 function bindCategoryTabEvents() {
+  const editToggleBtn = document.getElementById("cat-tab-edit-toggle");
+  if (editToggleBtn) {
+    editToggleBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      store.toggleCategoryEditMode();
+    });
+  }
+
   // 탭 클릭 → 전환
   document.querySelectorAll(".cat-tab").forEach(tab => {
-    tab.addEventListener("click", () => store.setActiveCategory(tab.dataset.cat));
+    tab.addEventListener("click", () => {
+      if (store.isCategoryEditMode() && tab.classList.contains("cat-tab-named")) return;
+      if (tab.dataset.cat) store.setActiveCategory(tab.dataset.cat);
+    });
   });
 
   // 탭으로 카드 드래그 드롭 → 카테고리 이동
@@ -477,6 +521,7 @@ function bindCategoryTabEvents() {
     tab.addEventListener("dblclick", (e) => {
       e.stopPropagation();
       e.preventDefault();
+      if (!store.isCategoryEditMode()) return;
       if (tab.querySelector("input")) return;
 
       const oldName = tab.dataset.cat;
@@ -514,6 +559,7 @@ function bindCategoryTabEvents() {
   document.querySelectorAll(".cat-tab-delete").forEach(btn => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
+      if (!store.isCategoryEditMode()) return;
       const cat = btn.dataset.cat;
       const ok = window.confirm(`'${cat}' 탭을 삭제할까요?\n\n이 탭의 할 일은 사라지지 않고 다른 탭으로 옮겨집니다.`);
       if (!ok) return;
@@ -668,8 +714,12 @@ function bindDashboardEvents() {
 btnBoardView.addEventListener("click", () => store.setView("board"));
 btnCalendarView.addEventListener("click", () => store.setView("calendar"));
 btnDashboardView.addEventListener("click", () => store.setView("dashboard"));
-if (btnMigrateSync) btnMigrateSync.addEventListener("click", startLocalMigration);
+if (btnMigrateSync && !btnMigrateSync.dataset.migrationBound) {
+  btnMigrateSync.dataset.migrationBound = "1";
+  btnMigrateSync.addEventListener("click", startLocalMigration);
+}
 if (btnSyncNow) btnSyncNow.addEventListener("click", () => store.refreshFromRemote(true));
+if (btnThemeToggle) btnThemeToggle.addEventListener("click", () => store.toggleTheme());
 
 btnAddTask.addEventListener("click", () => {
   if (store.getCurrentView() !== "board") {

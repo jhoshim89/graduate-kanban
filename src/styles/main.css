@@ -31,6 +31,24 @@
   --transition-normal: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+:root.theme-dark {
+  --color-canvas: #0f1115;
+  --color-canvas-soft: #151820;
+  --color-canvas-deep: #1d222b;
+  --color-ink: #f4f7fb;
+  --color-body: #c7ced8;
+  --color-mute: #8d97a6;
+  --color-border: #2a303a;
+  --color-border-strong: #5d6877;
+  --color-accent: #5aa7ff;
+  --color-accent-soft: rgba(90, 167, 255, 0.16);
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-warning-soft: rgba(251, 191, 36, 0.14);
+  --color-error: #ff6b6b;
+  --color-error-soft: rgba(255, 107, 107, 0.16);
+}
+
 /* Document & Base Resets */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -48,6 +66,17 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+:root.theme-dark body {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+:root.theme-dark input,
+:root.theme-dark select,
+:root.theme-dark textarea {
+  color-scheme: dark;
 }
 
 /* Layout Utilities (Vanilla Flex & Grid Helpers) */

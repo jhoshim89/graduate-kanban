@@ -67,6 +67,18 @@ export const SYNC_APP_URL = "https://script.google.com/macros/s/AKfycbwcB7-zS24y
 const REMOTE_SAVE_DEBOUNCE_MS = 700;
 const REMOTE_POLL_MS = 15000;
 
+function normalizeCategoryName(name) {
+  const clean = String(name || "").trim();
+  if (!clean) return "";
+  return LEGACY_CATEGORY_RENAMES[clean] || clean;
+}
+
+function normalizeCategoryList(categories) {
+  return [...new Set((Array.isArray(categories) ? categories : [])
+    .map(normalizeCategoryName)
+    .filter(Boolean))];
+}
+
 function hasAppsScriptBackend() {
   return Boolean(
     typeof window !== "undefined" &&
@@ -84,6 +96,7 @@ class GraduateStore {
     this.catKey = "graduate_kanban_categories_v2";
     this.activeCatKey = "graduate_kanban_active_category_v2";
     this.themeKey = "graduate_kanban_theme_v1";
+    this.hideCompletedKey = "graduate_kanban_hide_completed_v1";
     this.syncEnabled = hasAppsScriptBackend();
     this.readyForRemoteWrites = false;
     this.remoteSaveTimer = null;
@@ -140,6 +153,7 @@ class GraduateStore {
       currentMonth: new Date(),
       categoryEditMode: false,
       theme,
+      hideCompleted: localStorage.getItem(this.hideCompletedKey) === "true",
       memo: localStorage.getItem(this.memoKey) || SEED_MEMO,
       sync: {
         enabled: this.syncEnabled,
@@ -187,6 +201,10 @@ class GraduateStore {
 
   saveThemeToLocalStorage() {
     localStorage.setItem(this.themeKey, this.state.theme);
+  }
+
+  saveHideCompletedToLocalStorage() {
+    localStorage.setItem(this.hideCompletedKey, String(this.state.hideCompleted));
   }
 
   saveMemoToLocalStorage() {
@@ -250,6 +268,10 @@ class GraduateStore {
     return this.state.theme;
   }
 
+  isCompletedHidden() {
+    return Boolean(this.state.hideCompleted);
+  }
+
   // --- VIEW & TAB CONTROLS ---
   setView(viewName) {
     if (!["board", "calendar", "dashboard"].includes(viewName)) return;
@@ -259,8 +281,9 @@ class GraduateStore {
   }
 
   setActiveCategory(name) {
-    if (name !== ALL_TAB && !this.state.categories.includes(name)) return;
-    this.state.activeCategory = name;
+    const target = name === ALL_TAB ? ALL_TAB : normalizeCategoryName(name);
+    if (target !== ALL_TAB && !this.state.categories.includes(target)) return;
+    this.state.activeCategory = target;
     this.saveActiveCategoryToLocalStorage();
     this.notify();
   }
@@ -285,9 +308,19 @@ class GraduateStore {
     this.setTheme(this.state.theme === "dark" ? "light" : "dark");
   }
 
+  setCompletedHidden(isHidden) {
+    this.state.hideCompleted = Boolean(isHidden);
+    this.saveHideCompletedToLocalStorage();
+    this.notify();
+  }
+
+  toggleCompletedHidden() {
+    this.setCompletedHidden(!this.state.hideCompleted);
+  }
+
   // 탭(카테고리) 추가
   addCategory(name) {
-    const clean = (name || "").trim();
+    const clean = normalizeCategoryName(name);
     if (!clean) return { ok: false, message: "탭 이름을 입력해 주세요." };
     if (clean === ALL_TAB || clean === "전체") return { ok: false, message: "'전체'는 기본 탭이라 추가할 수 없어요." };
     if (this.state.categories.includes(clean)) return { ok: false, message: "이미 있는 탭이에요." };
@@ -302,16 +335,17 @@ class GraduateStore {
 
   // 탭 삭제 — 그 탭의 할 일은 지우지 않고 남은 첫 탭으로 옮긴다 (데이터 보존)
   deleteCategory(name) {
-    if (!this.state.categories.includes(name)) return { ok: false };
+    const target = normalizeCategoryName(name);
+    if (!this.state.categories.includes(target)) return { ok: false };
     if (this.state.categories.length <= 1) {
       return { ok: false, message: "탭은 최소 한 개는 있어야 해요." };
     }
-    this.state.categories = this.state.categories.filter(c => c !== name);
+    this.state.categories = this.state.categories.filter(c => c !== target);
     const fallback = this.state.categories[0];
     this.state.tasks = this.state.tasks.map(t =>
-      t.category === name ? { ...t, category: fallback } : t
+      t.category === target ? { ...t, category: fallback } : t
     );
-    if (this.state.activeCategory === name) {
+    if (this.state.activeCategory === target) {
       this.state.activeCategory = ALL_TAB;
       this.saveActiveCategoryToLocalStorage();
     }
@@ -323,18 +357,19 @@ class GraduateStore {
 
   // 탭 이름 변경 — 해당 할 일들의 category도 함께 갱신
   renameCategory(oldName, newName) {
-    const clean = (newName || "").trim();
+    const oldTarget = normalizeCategoryName(oldName);
+    const clean = normalizeCategoryName(newName);
     if (!clean) return { ok: false, message: "탭 이름을 입력해 주세요." };
-    if (!this.state.categories.includes(oldName)) return { ok: false };
-    if (clean === oldName) return { ok: true };
+    if (!this.state.categories.includes(oldTarget)) return { ok: false };
+    if (clean === oldTarget) return { ok: true };
     if (this.state.categories.includes(clean)) return { ok: false, message: "이미 있는 탭 이름이에요." };
 
-    this.state.categories = this.state.categories.map(c => (c === oldName ? clean : c));
+    this.state.categories = this.state.categories.map(c => (c === oldTarget ? clean : c));
     this.state.categories = normalizeCategoryList(this.state.categories);
     this.state.tasks = this.state.tasks.map(t =>
-      t.category === oldName ? { ...t, category: clean } : t
+      t.category === oldTarget ? { ...t, category: clean } : t
     );
-    if (this.state.activeCategory === oldName) {
+    if (this.state.activeCategory === oldTarget) {
       this.state.activeCategory = clean;
       this.saveActiveCategoryToLocalStorage();
     }
@@ -360,7 +395,7 @@ class GraduateStore {
   // category 미지정 시 현재 활성 탭(전체면 첫 탭)으로 분류
   addTask(title, dueDate = "", category = null) {
     const cat =
-      category ||
+      normalizeCategoryName(category) ||
       (this.state.activeCategory !== ALL_TAB
         ? this.state.activeCategory
         : this.state.categories[0] || "일상");
@@ -380,9 +415,12 @@ class GraduateStore {
   }
 
   updateTask(id, updates) {
+    const patch = updates && updates.category
+      ? { ...updates, category: normalizeCategoryName(updates.category) }
+      : updates;
     this.state.tasks = this.state.tasks.map(task => {
       if (task.id === id) {
-        return { ...task, ...updates };
+        return { ...task, ...patch };
       }
       return task;
     });
@@ -504,9 +542,12 @@ class GraduateStore {
       categories = normalizeCategoryList([...categories, ...tasks.map(t => t.category).filter(Boolean)]);
     }
 
+    const sourceActiveCategory = source.activeCategory === ALL_TAB
+      ? ALL_TAB
+      : normalizeCategoryName(source.activeCategory);
     const activeCategory =
-      source.activeCategory && (source.activeCategory === ALL_TAB || categories.includes(source.activeCategory))
-        ? source.activeCategory
+      sourceActiveCategory && (sourceActiveCategory === ALL_TAB || categories.includes(sourceActiveCategory))
+        ? sourceActiveCategory
         : ALL_TAB;
     const currentView = ["board", "calendar", "dashboard"].includes(source.currentView)
       ? source.currentView

@@ -13,21 +13,25 @@
 export function parseNaturalLanguageDate(text) {
   if (!text) return null;
   text = text.trim().toLowerCase();
+  const compactText = text.replace(/\s+/g, "");
   
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   // 1. Core Relative Keywords (Korean & English)
-  if (/^(오늘|금일|today|d-day|dday)$/.test(text)) {
+  if (/^(오늘|금일|today|d-day|dday)$/.test(compactText)) {
     return formatDate(today);
   }
-  if (/^(내일|명일|tomorrow)$/.test(text)) {
+  if (/^(내일|명일|tomorrow)$/.test(compactText)) {
     return formatDate(addDays(today, 1));
   }
-  if (/^(모레|내일모레|글피)$/.test(text)) {
+  if (/^(모레|모래|내일모레|내일모래)$/.test(compactText)) {
     return formatDate(addDays(today, 2));
   }
-  if (/^(어제|작일|yesterday)$/.test(text)) {
+  if (/^글피$/.test(compactText)) {
+    return formatDate(addDays(today, 3));
+  }
+  if (/^(어제|작일|yesterday)$/.test(compactText)) {
     return formatDate(addDays(today, -1));
   }
 
@@ -40,9 +44,17 @@ export function parseNaturalLanguageDate(text) {
   if (match) {
     return formatDate(addDays(today, parseInt(match[1])));
   }
+  match = text.match(/^(하루|이틀|사흘|나흘)\s*(뒤|후|후에|이후)$/);
+  if (match) {
+    return formatDate(addDays(today, koreanDayCountToNumber(match[1])));
+  }
   match = text.match(/^(\d+)\s*일\s*(전|전에|이전)$/);
   if (match) {
     return formatDate(addDays(today, -parseInt(match[1])));
+  }
+  match = text.match(/^(하루|이틀|사흘|나흘)\s*(전|전에|이전)$/);
+  if (match) {
+    return formatDate(addDays(today, -koreanDayCountToNumber(match[1])));
   }
 
   // 3. Day of week matching (e.g. '이번주 금요일', '다음주 월요일', '수요일')
@@ -103,6 +115,16 @@ export function formatDate(date) {
   return `${y}-${m}-${d}`;
 }
 
+function koreanDayCountToNumber(word) {
+  const dayCounts = {
+    "하루": 1,
+    "이틀": 2,
+    "사흘": 3,
+    "나흘": 4
+  };
+  return dayCounts[word] || 0;
+}
+
 /**
  * Intelligent Parser to extract both pure task title and due date from single input string.
  * High-Contrast Korean Unicode boundary compliant (Regex \b replaced).
@@ -115,11 +137,12 @@ export function extractNaturalLanguageDate(text) {
 
   // 시작 경계: 앞에 숫자만 아니면 인식 (한글/영문 바로 뒤에 붙은 날짜도 잡도록 lookbehind 사용)
   // 예: "동물병원6/17", "회의6월17일" 처럼 띄어쓰기 없이 붙여 쓴 경우도 날짜 인식
-  const relativeRegex = /(?:^|\s)(오늘|금일|내일|명일|모레|어제|글피|today|tomorrow|yesterday)(?:까지|에|이|가|\s|$)/i;
-  const dayOfWeekRegex = /(?:^|\s)((?:이번주|다음주)?\s*[월화수목금토일]요일)(?:까지|에|이|가|\s|$)/;
-  const monthDayRegex1 = /(?<!\d)(\d{1,2}\s*월\s*\d{1,2}\s*일?)(?:까지|에|이|가|\s|$)/;
-  const monthDayRegex2 = /(?<!\d)(\d{1,2}[/\-.]\d{1,2})(?:일|요일|까지|에|이|가|\s|$)/;
-  const isoDateRegex = /(?<!\d)(\d{4}[/\-.]\d{1,2}[/\-.]\d{1,2})(?:까지|에|이|가|\s|$)/;
+  const relativeRegex = /(?:^|\s)(내일\s*모레|내일\s*모래|오늘|금일|내일|명일|모레|모래|어제|작일|글피|today|tomorrow|yesterday)(?:까지의|까지|에는|에|이|가|은|는)?(?=\s|$)/i;
+  const relativeOffsetRegex = /(?:^|\s)((?:\d+\s*일|하루|이틀|사흘|나흘)\s*(?:뒤|후|후에|이후|전|전에|이전))(?:까지의|까지|에는|에|이|가|은|는)?(?=\s|$)/;
+  const dayOfWeekRegex = /(?:^|\s)((?:이번주|다음주)?\s*[월화수목금토일]요일)(?:까지의|까지|에는|에|이|가|은|는)?(?=\s|$)/;
+  const monthDayRegex1 = /(?<!\d)(\d{1,2}\s*월\s*\d{1,2}\s*일?)(?:까지의|까지|에는|에|이|가|은|는)?(?=\s|$)/;
+  const monthDayRegex2 = /(?<!\d)(\d{1,2}[/\-.]\d{1,2})(?:일|요일|까지의|까지|에는|에|이|가|은|는)?(?=\s|$)/;
+  const isoDateRegex = /(?<!\d)(\d{4}[/\-.]\d{1,2}[/\-.]\d{1,2})(?:까지의|까지|에는|에|이|가|은|는)?(?=\s|$)/;
 
   let dueDate = "";
   let title = text;
@@ -164,7 +187,21 @@ export function extractNaturalLanguageDate(text) {
     }
   }
 
-  // 4. Relative keywords (e.g. 오늘, 내일)
+  // 4. Relative day offsets (e.g. 하루 뒤, 3일 후)
+  if (!dueDate) {
+    match = title.match(relativeOffsetRegex);
+    if (match) {
+      const rawMatch = match[0].trim();
+      const datePart = match[1].trim();
+      const parsed = parseNaturalLanguageDate(datePart);
+      if (parsed) {
+        dueDate = parsed;
+        title = title.replace(rawMatch, "").trim();
+      }
+    }
+  }
+
+  // 5. Relative keywords (e.g. 오늘, 내일, 모레)
   if (!dueDate) {
     match = title.match(relativeRegex);
     if (match) {
@@ -188,5 +225,4 @@ export function extractNaturalLanguageDate(text) {
 
   return { title, dueDate };
 }
-
 

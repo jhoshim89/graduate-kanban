@@ -5,6 +5,9 @@
   "oauthScopes": [
     "https://www.googleapis.com/auth/spreadsheets"
   ],
+  "executionApi": {
+    "access": "MYSELF"
+  },
   "webapp": {
     "executeAs": "USER_DEPLOYING",
     "access": "MYSELF"

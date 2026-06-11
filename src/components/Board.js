@@ -47,10 +47,14 @@ export function getDueStatus(dueDateStr) {
 function renderCategoryTabs() {
   const categories = store.getCategories();
   const activeCat = store.getActiveCategory();
+  const isEditingTabs = store.isCategoryEditMode();
   const allActive = activeCat === ALL_TAB ? "active" : "";
+  const editClass = isEditingTabs ? "is-editing" : "";
+  const editIcon = isEditingTabs ? "check" : "pencil";
+  const editLabel = isEditingTabs ? "탭 편집 완료" : "탭 편집";
 
   return `
-    <div class="category-tabs" role="tablist">
+    <div class="category-tabs ${editClass}" role="tablist">
       <button class="cat-tab ${allActive}" data-cat="${ALL_TAB}" role="tab">
         전체 <span class="cat-tab-num">1</span>
       </button>
@@ -65,19 +69,23 @@ function renderCategoryTabs() {
           ? `background:${color};color:#fff;border-color:${color};`
           : `background:${color}1a;color:${color};border-color:${color}40;`;
         return `
-          <span class="cat-tab-wrap ${isActive}" data-cat="${safe}">
-            <button class="cat-tab cat-tab-named ${isActive}" data-cat="${safe}" role="tab" style="${tabStyle}" title="더블클릭하면 이름 변경 · 카드를 끌어다 놓으면 이 탭으로 이동">
+          <span class="cat-tab-wrap ${isActive} ${editClass}" data-cat="${safe}">
+            <button class="cat-tab cat-tab-named ${isActive}" data-cat="${safe}" role="tab" style="${tabStyle}" title="${isEditingTabs ? '더블클릭하면 이름 변경 · 카드를 끌어다 놓으면 이 탭으로 이동' : '카드를 끌어다 놓으면 이 탭으로 이동'}">
               ${safe}${numHtml}
             </button>
-            <button class="cat-tab-delete" data-cat="${safe}" title="'${safe}' 탭 삭제" aria-label="탭 삭제">
+            ${isEditingTabs ? `<button class="cat-tab-delete" data-cat="${safe}" title="'${safe}' 탭 삭제" aria-label="탭 삭제">
               <i data-lucide="x" class="w-2 h-2"></i>
-            </button>
+            </button>` : ""}
           </span>
         `;
       }).join("")}
-      <button class="cat-tab-add" id="cat-tab-add-btn" title="새 탭 추가">
+      ${isEditingTabs ? `<button class="cat-tab-add" id="cat-tab-add-btn" title="새 탭 추가">
         <i data-lucide="plus" class="w-3 h-3"></i>
         <span>탭 추가</span>
+      </button>` : ""}
+      <button class="cat-tab-edit-toggle ${isEditingTabs ? 'active' : ''}" id="cat-tab-edit-toggle" aria-pressed="${isEditingTabs}" title="${editLabel}" aria-label="${editLabel}">
+        <i data-lucide="${editIcon}" class="w-3 h-3"></i>
+        <span>${isEditingTabs ? "완료" : "편집"}</span>
       </button>
     </div>
   `;
@@ -135,9 +143,20 @@ function renderCard(task, showCategoryBadge) {
 export function renderBoard() {
   const tasks = store.getVisibleTasks();
   const showCategoryBadge = store.getActiveCategory() === ALL_TAB;
+  const hideCompleted = store.isCompletedHidden();
 
   const active = tasks.filter(t => t.status !== "done");
   const doneTasks = tasks.filter(t => t.status === "done");
+  const doneDivider = doneTasks.length
+    ? `<div class="done-divider ${hideCompleted ? 'is-collapsed' : ''}">
+        <span class="done-count">완료됨 ${doneTasks.length}</span>
+        <span class="done-divider-line" aria-hidden="true"></span>
+        <button class="done-toggle-btn" id="done-toggle-btn" aria-pressed="${hideCompleted}" title="${hideCompleted ? '완료됨 보기' : '완료됨 숨기기'}" aria-label="${hideCompleted ? '완료됨 보기' : '완료됨 숨기기'}">
+          <i data-lucide="${hideCompleted ? 'eye' : 'eye-off'}" class="w-3 h-3"></i>
+          <span>${hideCompleted ? '보기' : '숨기기'}</span>
+        </button>
+      </div>`
+    : "";
 
   const emptyState = (active.length === 0 && doneTasks.length === 0)
     ? `<div class="empty-state list-empty"><span>이 탭에 할 일이 없어요. 아래에 입력해서 추가하세요.</span></div>`
@@ -149,8 +168,8 @@ export function renderBoard() {
       <div class="todo-list">
         ${emptyState}
         ${active.map(t => renderCard(t, showCategoryBadge)).join("")}
-        ${doneTasks.length ? `<div class="done-divider"><span>완료됨 ${doneTasks.length}</span></div>` : ""}
-        ${doneTasks.map(t => renderCard(t, showCategoryBadge)).join("")}
+        ${doneDivider}
+        ${hideCompleted ? "" : doneTasks.map(t => renderCard(t, showCategoryBadge)).join("")}
       </div>
 
       <div class="static-inline-add" data-status="todo">
