@@ -96,5 +96,59 @@
 
   <!-- App Core JavaScript -->
   <script type="module" src="/src/main.js"></script>
+  <script>
+    (() => {
+      const syncUrl = "https://script.google.com/macros/s/AKfycbwcB7-zS24yffC5SbHnok1oHDZdNQncm5Z60d5YqB-jvnleBoCOCODgMlxDJMjocO_Cmw/exec";
+      const btn = document.getElementById("btn-migrate-sync");
+      const hasAppsScript = Boolean(window.google && window.google.script && window.google.script.run);
+      if (!btn || hasAppsScript || btn.dataset.migrationBound) return;
+
+      const readJson = (key, fallback) => {
+        try {
+          const raw = localStorage.getItem(key);
+          return raw ? JSON.parse(raw) : fallback;
+        } catch (error) {
+          return fallback;
+        }
+      };
+      const encode = (data) => {
+        const bytes = new TextEncoder().encode(JSON.stringify(data));
+        let binary = "";
+        bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+        return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+      };
+
+      Object.assign(btn.style, {
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "6px",
+        height: "34px",
+        padding: "0 12px",
+        border: "1px solid #0070f3",
+        borderRadius: "6px",
+        background: "#0070f3",
+        color: "#fff",
+        fontSize: "12px",
+        fontWeight: "600",
+        cursor: "pointer"
+      });
+      btn.hidden = false;
+      btn.dataset.migrationBound = "1";
+      btn.addEventListener("click", () => {
+        const snapshot = {
+          _app: "graduate-kanban",
+          _version: 4,
+          tasks: readJson("graduate_kanban_tasks_v2", []),
+          categories: readJson("graduate_kanban_categories_v2", []),
+          activeCategory: localStorage.getItem("graduate_kanban_active_category_v2") || "__all__",
+          memo: localStorage.getItem("graduate_kanban_memo_v2") || "",
+          currentView: localStorage.getItem("graduate_kanban_view_v2") || "board"
+        };
+        const count = Array.isArray(snapshot.tasks) ? snapshot.tasks.length : 0;
+        if (!window.confirm(`이 브라우저에 있는 할 일 ${count}개와 메모를 Google 동기화판으로 옮길까요?`)) return;
+        window.location.href = `${syncUrl}#import=${encode(snapshot)}`;
+      });
+    })();
+  </script>
 </body>
 </html>
